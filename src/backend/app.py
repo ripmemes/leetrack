@@ -5,6 +5,7 @@ import json
 from flask_wtf import FlaskForm 
 from flask_sqlalchemy import SQLAlchemy 
 from wtforms import StringField, EmailField, PasswordField, validators , SubmitField
+import requests
 
 
 app = Flask(__name__,template_folder='../frontend')
@@ -70,7 +71,102 @@ def login():
     return {'message' : f'Welcome {user.username} !'}
 
 
+@app.route("/api/daily")
+def daily():
+    # using GraphQL query
+    query = """query questionOfToday {
+        activeDailyCodingChallengeQuestion{
+            date
+            link
+            question{
+                title
+            }
+        }
+    }
+    """
+    try : 
+        response = requests.post("https://leetcode.com/graphql",
+                                    json={"query":query},
+                                    headers={"Content-Type": "application/json" })
+        if (not response.ok):
+            raise Exception("Network response was not ok")
+        return jsonify(response.json()["data"]["activeDailyCodingChallengeQuestion"])
+    except Exception as e : 
+        print(f"Request failed : {e}")
+        return jsonify({'error':'Fetching failed (backend)'}) , 404
+@app.route("/api/contest")
+def contest():
+    query = """query upcomingContests {
+    upcomingContests {
+     title
+     titleSlug
+      startTime
+      duration
+      __typename
+      }
+     }
+     """
+    try : 
+        response = requests.post("https://leetcode.com/graphql",
+                                 json = {"query": query},
+                                 headers ={"Content-Type":"application/json"})
+        if (not response.ok):
+            raise Exception("Network response was not ok")
+        return jsonify(response.json()["data"]["upcomingContests"])
+    except Exception as e :
+        print(f"Request failed : {e}")
+        return jsonify ({'error' : 'Fetching failed (backend)'}) , 404
+    
+@app.route("/api/problems")
+def problems():
+    query = """
+        query problemsetQuestionListV2($limit: Int, $skip: Int) {
+        problemsetQuestionListV2(limit: $limit, skip: $skip) {
+            questions {
+            questionFrontendId
+            title
+            difficulty
+            }
+            hasMore
+        }
+        }
+    """
 
+    skip = request.args.get("skip",default=0,type=int)
+    limit = request.args.get("limit",default=15,type=int)
+    print("skip is " , skip)
+
+    variables = {
+        "categorySlug": "all-code-essentials",
+        "filters": {},
+        "filtersV2": {},
+        "limit": limit,
+        "skip": skip,
+        "searchKeyword": "",
+        "sortBy": {
+            "sortField": "CUSTOM",
+            "sortOrder": "ASCENDING"
+    }
+}
+       
+
+    try : 
+        response = requests.post("https://leetcode.com/graphql", 
+                                 json = {'query' : query , 'variables' : variables},
+                                 headers = {'Content-Type' : 'application/json'})
+        response.raise_for_status()
+        data = response.json()
+
+        # print(data)
+        if (not response.ok):
+            raise Exception("Network response was not ok")
+        
+        return jsonify(data['data']['problemsetQuestionListV2'] )
+        
+    except Exception as e :
+        print(f"Request failed : {e}")
+        return jsonify({'error':'Fetching failed (backend)'}) , 404
+    
 
 if __name__ == "__main__":
     app.run(debug=True)
