@@ -6,19 +6,24 @@ from flask_sqlalchemy import SQLAlchemy
 from argon2 import PasswordHasher
 from wtforms import StringField, EmailField, PasswordField, validators , SubmitField
 import requests
-import openai
+from openai import OpenAI
+from dotenv import load_dotenv
+import os 
+
+
 from datetime import datetime
 
-
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"),base_url="https://api.groq.com/openai/v1")
 
 app = Flask(__name__,template_folder='../frontend')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///Users.sqlite3'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///Users.sqlite3'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 CORS(app)
 app.secret_key = "random_placeholder_key"
 ph = PasswordHasher()
 
 # OpenAI setup
-openai.api_key = "key"
 
 # ------ 
 # Setting up the database 
@@ -96,7 +101,7 @@ with app.app_context():
 def register():
     if not request.json : 
         return {'error' : 'Invalid request: must be json file'}, 400 
-    
+
     data = request.json
     print(data)
     username = data.get('username')
@@ -106,7 +111,7 @@ def register():
     if not username or not email or not password : 
         print("error here")
         return {'error' : 'All fields are required'}, 400
-    
+
     # no need for try block like in sqlite ?
     new_user = Users(username,email,password)
     db.session.add(new_user)
@@ -123,12 +128,12 @@ def login():
 
     if not user :
         return {'error': 'User not found'} , 404
-    
+
     try : 
         ph.verify( user.password , data['password'] )
     except Exception:
         return {'error':"Invalid Password"},404
-    
+
     return redirect("http://localhost:3000/")
 
 
@@ -151,7 +156,7 @@ def daily():
                                     headers={"Content-Type": "application/json" })
         if (not response.ok):
             raise Exception("Network response was not ok")
-        return jsonify(response.json()["data"]["activeDailyCodingChallengeQuestion"])
+        return jsonify(response.json()['data']['activeDailyCodingChallengeQuestion'])
     except Exception as e : 
         print(f"Request failed : {e}")
         return jsonify({'error':'Fetching failed (backend)'}) , 404
@@ -173,11 +178,11 @@ def contest():
                                  headers ={"Content-Type":"application/json"})
         if (not response.ok):
             raise Exception("Network response was not ok")
-        return jsonify(response.json()["data"]["upcomingContests"])
+        return jsonify(response.json()['data']['upcomingContests'])
     except Exception as e :
         print(f"Request failed : {e}")
         return jsonify ({'error' : 'Fetching failed (backend)'}) , 404
-    
+
 @app.route("/api/problems")
 def problems():
     query = """
@@ -209,7 +214,7 @@ def problems():
             "sortOrder": "ASCENDING"
     }
 }
-       
+
 
     try : 
         response = requests.post("https://leetcode.com/graphql", 
@@ -221,13 +226,13 @@ def problems():
         # print(data)
         if (not response.ok):
             raise Exception("Network response was not ok")
-        
+
         return jsonify(data['data']['problemsetQuestionListV2'] )
-        
+
     except Exception as e :
         print(f"Request failed : {e}")
         return jsonify({'error':'Fetching failed (backend)'}) , 404
-    
+
 @app.route("/api/ai",methods=['POST'])
 def ai():
     data = request.json 
@@ -247,10 +252,10 @@ def ai():
 
     prompt = build_prompt(conversation.id)
 
-    response = openai.ChatCompletion.create(model="gpt-4o-mini",
+    response = client.chat.completions.create(model="llama-3.1-8b-instant",
                                             messages=prompt)
-    
-    reply = response["choices"][0]["message"]["content"]
+
+    reply = response.choices[0].message.content
 
     # TODO : Change this line
     if "```" in reply :
@@ -276,9 +281,9 @@ def convos():
         response = Conversations.query.filter_by(id = id).first()
         if not response :
             return {'error':'Conversation not found!'}, 404
-        
+
         return jsonify([{'id' : response.id ,'created_at' : response.created_at, 'user_id' : response.user_id, 'problem_id'  : response.problem_id}]), 200
-    
+
 @app.route("/api/messages")
 def messages():
     id = request.args.get('conversation_id')
@@ -292,7 +297,7 @@ def messages():
     return jsonify(messages), 200                          
 
 
-    
+
 
 if __name__ == "__main__":
     app.run(debug=True)
