@@ -2,6 +2,7 @@ import React from 'react'
 import {Daily} from './PostCard.js'
 import ContestBar from './ContestBar.js'
 import ProblemLst from './ProblemLst.js'
+import AIComponent from './AIComponent.js';
 // For overview, after authenticating 
 function Home(){
     // TOP LEFT : Contests
@@ -13,6 +14,7 @@ function Home(){
         <div><ContestBar></ContestBar></div>
         <div className="h-28"><Daily/></div>
         <div className="bg-slate-600"><ProblemLst/></div>
+        <div><AIComponent/></div>
     </div>   
     )
 }
