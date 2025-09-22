@@ -69,8 +69,16 @@ function ProblemLst(){
         <div className="overflow-y-auto h-lvh">
             <ul>
                 {problems.map(p =>(
-                    <li key ={p.questionFrontendId}>
-                        <div>{p.questionFrontendId}, {p.title} {p.difficulty}</div>
+                    <li key ={p.questionFrontendId} className="p-3 border-b hover:bg-gray-50">
+                        <div className="flex items-center justify-between">
+                            <span className="font-semibold">{p.questionFrontendId}, {p.title} </span>
+                            <span className={`px-2 py-1 rounded-md border text-sm font-medium
+                            ${p.difficulty === "EASY" ? "border-green-500 text-green-600" : ""}
+                            ${p.difficulty === "MEDIUM" ? " border-yellow-500 text-yellow-600" : ""}
+                            ${p.difficulty === "HARD" ? "border-red-500 text-red-600" : ""}`}>
+                            {p.difficulty}
+                            </span>
+                        </div>
                     </li>
                 ))}
             </ul>
