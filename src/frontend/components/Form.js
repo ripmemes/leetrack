@@ -5,7 +5,7 @@ export const Form = ({formType,fieldArr,backendURL}) => {
     const defaultDictState = {}
 
     for (let i = 0 ; i < fieldArr.length ; i++){
-        defaultDictState[fieldArr[i]] = '';
+        defaultDictState[fieldArr[i].toLowerCase()] = '';
     }
 
     const [formData , setFormData] = useState(defaultDictState);
@@ -25,7 +25,7 @@ export const Form = ({formType,fieldArr,backendURL}) => {
         
 
         try {
-            if (formData['Confirm Password'] && formData['Confirm Password'] !== formData['Password'] ){
+            if (formData['confirm password'] && formData['confirm password'] !== formData['password'] ){
                 throw new Error("The password in 'Confirm Password' field doesn't match the one in 'Password' field")
             }
             const response = await fetch(`http://localhost:5000/${backendURL}`, {
@@ -36,15 +36,20 @@ export const Form = ({formType,fieldArr,backendURL}) => {
                 body : JSON.stringify(formData),
             });
 
-            const result = await response.json();
+            
             
             if (response.status == 404){
-                throw new Error(result.error)
+                throw new Error("Network response was not ok")
             }
             if (!response.ok){
                 throw new Error('Network response was not ok')
+            } 
+            if (response.redirected){
+                window.location.href = response.url 
+                return; 
             }
 
+            const result = await response.json();
             // Parse the JSON from backend
 
             
@@ -73,8 +78,8 @@ export const Form = ({formType,fieldArr,backendURL}) => {
                             </label>
                             <input type={field.toLowerCase().includes('password') ? 'password' : 'text'}
                                     id = {field}
-                                    name = {field}
-                                    value = {formData[field]}
+                                    name = {field.toLowerCase()}
+                                    value = {formData[field.toLowerCase()]}
                                     onChange = {handleChange}
                                     disabled = {isSubmitting}
                                     required
