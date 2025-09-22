@@ -37,13 +37,13 @@ function ContestBar(){
     return (
         <div>
         { contests ? 
-            <div className="relative flex flex-col bg-center w-full bg-green-500 border rounded-lg shadow-sm">
+            <div className="relative flex flex-col w-full bg-green-500 border rounded-lg shadow-md divide-y divide-green-400">
                 {contests.map((element) => (
-                    <div className="text-white py-4 mx-4 px-5 m-12" key={element.title}>
-                        <div>Title: {element.title}</div>
+                    <div className="text-white py-4 px-6 hover:bg-green-600 transition rounded-md" key={element.title}>
+                        <div className ="font-bold text-lg">Title: {element.title}</div>
                         {/* <div>Slug: {element.titleSlug}</div> */}
-                        <div>Starts at: {new Date(element.startTime * 1000).toLocaleString()}</div>
-                        <div>Duration : {element.duration /60} minutes</div>
+                        <div className="text-sm">Starts at: {new Date(element.startTime * 1000).toLocaleString()}</div>
+                        <div className ="text-sm">Duration : {element.duration /60} minutes</div>
                     </div>
                 ))}
             <div className="absolute"></div>
