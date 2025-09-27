@@ -1,4 +1,4 @@
-import React , {useState ,useRef} from 'react'
+import React , {useState ,useEffect} from 'react'
 
 function AIComponent(){
 
@@ -18,7 +18,9 @@ function AIComponent(){
     // fetch messages for a given conversation
     // ------
     const fetchMessages = async (convoId) => {
+        console.log("test?")
         if (convoId ===-1) return ; // don't fetch 
+        
         try {
             const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${convoId}`,
                 {method : 'GET',
@@ -27,6 +29,8 @@ function AIComponent(){
                 }
                 }
             )
+
+            console.log("messages should've been fetched by now ?")
 
             if (!response.ok){
                 const errorMsg = await response.json()['error']
@@ -64,7 +68,7 @@ function AIComponent(){
             console.error("Error fetching conversations")
             setConversations([])
         }
-    } 
+    }
 
     // -----
     // fetch data of a single conversation
@@ -90,6 +94,35 @@ function AIComponent(){
     } 
 
     // ----
+    // delete conversation
+    // ----
+    const deleteConversation = async (convoId) => {
+        try {
+            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${convoId}`, {
+             method : "DELETE"   
+            } )
+
+            if (!response.ok){
+                const errorMsg = await response.json()['error']
+                throw new Error("Network response was not ok, ", errorMsg)
+            }
+
+            const id = +convoMsgs[0].content // + : to convert string to int
+            if (convoId==id){
+                console.log("messages of current convo reset !")
+                setConvoMsgs(null)
+                renderChatBox()
+            }
+            setConversations(prev=>(prev.filter(msg=>msg.id!=id)))
+            renderConvoMenu()
+
+        }
+        catch (err){
+            console.error("Error deleting conversation: ", err)
+        }
+    }
+
+    // ----
     // update the message state according to field input
     // ----
 
@@ -99,6 +132,7 @@ function AIComponent(){
 
     // ----
     // send message to backend, to fetch reply through api request to openai
+    // TODO : get rid of unnecessary fetching, alternatively update local state in frontend
     // ----
 
     const sendMessage = async (e) =>{
@@ -108,6 +142,7 @@ function AIComponent(){
         
         try{
             // TODO: user_id and problem_id are placeholders
+            setConvoId(1)
             const response = await fetch("http://localhost:5000/api/ai" , {
                 method : "POST",
                 body: JSON.stringify({'message':message, 'user_id' : 1, 'problem_id': 1}),
@@ -118,9 +153,9 @@ function AIComponent(){
             if (!response.ok){
                 throw new Error("Network response was not ok")
             }
-
-            const result = await response.json()
+           
             fetchMessages(convoId)
+            fetchConversations()
             return;
         } catch (err){
             console.error(err)
@@ -128,6 +163,8 @@ function AIComponent(){
         } finally{
             setSubmitting(false)
             setMessage("")
+            renderChatBox()
+            renderConvoMenu()
         }
     }
     
@@ -144,7 +181,8 @@ function AIComponent(){
             {conversations.map(convo=>(
                 <li key={convo.id} className="p-3 border-b hover:bg-purple-200">
                     <div className="flex items-center justify-between">
-                        <span className="front-semibold">Conversation ID: {convo.id}</span>
+                        <button className="front-semibold" onClick={() => fetchMessages(convo.id) }>Conversation ID: {convo.id}</button>
+                        <button className="absolute right-2 px-3 py-4" onClick={() => deleteConversation(convo.id)}>🗑️</button>
                     </div>
                 </li>
                 )) 
@@ -191,6 +229,8 @@ function AIComponent(){
         </ul></div>)
     }
 
+   
+
     return (
 
         <div>
@@ -201,7 +241,7 @@ function AIComponent(){
             }
             }>💬 Logo place holder 💬</button>
             {/* <button onClick = {() => setMenuOpen(!menuOpen)}> open conversation menu placeholder</button> */}
-            {isOpen? <div className ="flex flex-row">
+            {isOpen && <div className ="flex flex-row">
                 {menuOpen ? renderConvoMenu() : (<></>)}
                 {convoMsgs ? renderChatBox() : null}
                 <form action="/" onSubmit ={sendMessage}>
@@ -210,9 +250,9 @@ function AIComponent(){
                 </form>
                 <div></div>
                 
-                {error && (<div className ="bg-red-600 relative right-1">Error</div>) }
+                {error && (<div className ="bg-red-600 relative right-1">Error : {error.message}</div>) }
             </div> 
-            : <></>}
+            }
         </div>
     )
 }
