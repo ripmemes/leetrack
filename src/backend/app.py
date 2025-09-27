@@ -36,13 +36,8 @@ class Users(db.Model):
     username = db.Column(db.String(200))
     email = db.Column(db.String(100))
     password = db.Column(db.String(200))
-    conversations = db.relationship("Conversations",backref="user",lazy=True)
+    conversations = db.relationship("Conversations",backref="user",lazy=True, cascade="all, delete-orphan")
 
-    # def __init__(self,username,email,password):
-    #     self.username = username 
-    #     self.email = email 
-    #     self.password = ph.hash(password)
-    #     print(self.password)
 # -----
 # Problems : To save Problems for each user
 # -----
@@ -60,7 +55,7 @@ class Conversations(db.Model):
     user_id = db.Column(db.Integer,db.ForeignKey("users.id"))
     problem_id = db.Column(db.Integer, db.ForeignKey("problems.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    messages = db.relationship("Messages",backref="conversation",lazy=True)
+    messages = db.relationship("Messages",backref="conversation",lazy=True , cascade="all, delete-orphan")
 
     # def __init__(self,role,message):
     #     self.role = role 
@@ -79,6 +74,7 @@ class Messages(db.Model):
 def build_prompt(conversation_id):
     msgs = Messages.query.filter_by(conversation_id=conversation_id).order_by(Messages.created_at).all()
     history = [
+        {"role":"system","content": (f"{conversation_id}")},
         {"role":"system","content": "You are an algorithm tutor. Do not provide full code. Only give explanations, hints, and pseudocode."}
     ]
     for m in msgs : 
@@ -265,54 +261,6 @@ def problems():
         print(f"Request failed : {e}")
         return jsonify({'error':'Fetching failed (backend)'}) , 404
     
-# @app.route("/api/problems")
-# def problems():
-#     query = """
-#         query problemsetQuestionListV2($limit: Int, $skip: Int) {
-#         problemsetQuestionListV2(limit: $limit, skip: $skip) {
-#             questions {
-#             questionFrontendId
-#             title
-#             difficulty
-#             }
-#             hasMore
-#         }
-#         }
-#     """
-
-#     skip = request.args.get("skip",default=0,type=int)
-#     limit = request.args.get("limit",default=15,type=int)
-#     print("skip is " , skip)
-
-#     variables = {
-#         "categorySlug": "all-code-essentials",
-#         "filters": {},
-#         "filtersV2": {},
-#         "limit": limit,
-#         "skip": skip,
-#         "searchKeyword": "",
-#         "sortBy": {
-#             "sortField": "CUSTOM",
-#             "sortOrder": "ASCENDING"
-#     }
-# }
-
-
-#     try : 
-#         response = requests.post("https://leetcode.com/graphql", 
-#                                  json = {'query' : query , 'variables' : variables},
-#                                  headers = {'Content-Type' : 'application/json'})
-#         response.raise_for_status()
-#         data = response.json()
-
-#         if (not response.ok):
-#             raise Exception("Network response was not ok")
-
-#         return jsonify(data['data']['problemsetQuestionListV2'] )
-
-#     except Exception as e :
-#         print(f"Request failed : {e}")
-#         return jsonify({'error':'Fetching failed (backend)'}) , 404
 
 @app.route("/api/ai",methods=['POST'])
 def ai():
@@ -375,7 +323,23 @@ def messages():
     if not messages :
         return {"error": "Something went wrong while loading the conversation"}, 400
 
-    return jsonify(messages), 200                          
+    return jsonify(messages), 200    
+
+@app.delete("/api/deleteconvo")
+def delconvo():
+    
+    id = request.args.get('conversation_id')
+    if not id : 
+        return {"error": "conversation_id is required"} , 400
+    
+    convo = Conversations.query.filter_by(id = id).first()
+
+    if not convo:
+        return {'error':'Conversation not found!'}, 404
+
+    db.session.delete(convo)
+    db.session.commit()
+    return {"success":"Conversation deleted successfully"} ,200
 
 
 
