@@ -13,6 +13,8 @@ import os
 
 from datetime import datetime
 
+
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"),base_url="https://api.groq.com/openai/v1")
 
@@ -97,6 +99,8 @@ with app.app_context():
 
 # Hashing Function to store passwords
 
+
+
 @app.route("/register", methods = ['POST'])
 def register():
     if not request.json : 
@@ -160,6 +164,7 @@ def daily():
     except Exception as e : 
         print(f"Request failed : {e}")
         return jsonify({'error':'Fetching failed (backend)'}) , 404
+    
 @app.route("/api/contest")
 def contest():
     query = """query upcomingContests {
@@ -182,38 +187,66 @@ def contest():
     except Exception as e :
         print(f"Request failed : {e}")
         return jsonify ({'error' : 'Fetching failed (backend)'}) , 404
-
+    
 @app.route("/api/problems")
 def problems():
-    query = """
-        query problemsetQuestionListV2($limit: Int, $skip: Int) {
-        problemsetQuestionListV2(limit: $limit, skip: $skip) {
+    query ="""
+        query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String, $searchKeyword: String) {
+          problemsetQuestionListV2(
+            filters: $filters
+            limit: $limit
+            skip: $skip
+            sortBy: $sortBy
+            categorySlug: $categorySlug
+            searchKeyword: $searchKeyword
+          ) {
             questions {
-            questionFrontendId
-            title
-            difficulty
+              questionFrontendId
+              title
+              difficulty
             }
             hasMore
-        }
+          }
         }
     """
 
+    filters = {
+        "filterCombineType": "ALL",
+        "difficultyFilter": {"difficulties": [], "operator": "IS"},
+        "languageFilter": {"languageSlugs": [], "operator": "IS"},
+        "topicFilter": {"topicSlugs": [], "operator": "IS"},
+    }
+    
+
     skip = request.args.get("skip",default=0,type=int)
     limit = request.args.get("limit",default=15,type=int)
+    difficulties = request.args.getlist("difficulties",type=str)
+    languages = request.args.getlist("languages", type=str)
+    topics = request.args.getlist("topics",type=str)
+    if (difficulties):
+        print(difficulties)
+        filters["difficultyFilter"]["difficulties"] = [d.upper() for d in difficulties]
+    if (languages) : 
+        print(languages)
+        filters["languageFilter"]["languageSlugs"] = [l.lower() for l in languages]
+    if (topics):
+        print(topics)
+        filters["topicFilter"]["topicSlugs"] = [t.lower() for t in topics]
+    
     print("skip is " , skip)
 
     variables = {
         "categorySlug": "all-code-essentials",
-        "filters": {},
-        "filtersV2": {},
+        "filters": filters,
+        "filtersV2": filters,  
         "limit": limit,
         "skip": skip,
         "searchKeyword": "",
         "sortBy": {
             "sortField": "CUSTOM",
             "sortOrder": "ASCENDING"
+        }
     }
-}
 
 
     try : 
@@ -223,7 +256,6 @@ def problems():
         response.raise_for_status()
         data = response.json()
 
-        # print(data)
         if (not response.ok):
             raise Exception("Network response was not ok")
 
@@ -232,6 +264,55 @@ def problems():
     except Exception as e :
         print(f"Request failed : {e}")
         return jsonify({'error':'Fetching failed (backend)'}) , 404
+    
+# @app.route("/api/problems")
+# def problems():
+#     query = """
+#         query problemsetQuestionListV2($limit: Int, $skip: Int) {
+#         problemsetQuestionListV2(limit: $limit, skip: $skip) {
+#             questions {
+#             questionFrontendId
+#             title
+#             difficulty
+#             }
+#             hasMore
+#         }
+#         }
+#     """
+
+#     skip = request.args.get("skip",default=0,type=int)
+#     limit = request.args.get("limit",default=15,type=int)
+#     print("skip is " , skip)
+
+#     variables = {
+#         "categorySlug": "all-code-essentials",
+#         "filters": {},
+#         "filtersV2": {},
+#         "limit": limit,
+#         "skip": skip,
+#         "searchKeyword": "",
+#         "sortBy": {
+#             "sortField": "CUSTOM",
+#             "sortOrder": "ASCENDING"
+#     }
+# }
+
+
+#     try : 
+#         response = requests.post("https://leetcode.com/graphql", 
+#                                  json = {'query' : query , 'variables' : variables},
+#                                  headers = {'Content-Type' : 'application/json'})
+#         response.raise_for_status()
+#         data = response.json()
+
+#         if (not response.ok):
+#             raise Exception("Network response was not ok")
+
+#         return jsonify(data['data']['problemsetQuestionListV2'] )
+
+#     except Exception as e :
+#         print(f"Request failed : {e}")
+#         return jsonify({'error':'Fetching failed (backend)'}) , 404
 
 @app.route("/api/ai",methods=['POST'])
 def ai():
