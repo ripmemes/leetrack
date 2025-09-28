@@ -1,10 +1,12 @@
-import React , {useState ,useEffect} from 'react'
+import React , {useState ,useRef} from 'react'
 
 function AIComponent(){
 
     const [conversations , setConversations] = useState(null) 
     const [convoMsgs , setConvoMsgs ] = useState(null)
-    const [convoId, setConvoId] = useState(-1) // useRef instead?
+    
+    const convoId = useRef(1) // this is the pointer to currently observed covnersation
+    const convoEdge = useRef(1) // this is the pointer to the id of the next conversation
     const [message,setMessage] = useState("")
 
     // ------
@@ -17,12 +19,11 @@ function AIComponent(){
     // ------
     // fetch messages for a given conversation
     // ------
-    const fetchMessages = async (convoId) => {
-        console.log("test?")
-        if (convoId ===-1) return ; // don't fetch 
+    const fetchMessages = async (conversationId) => {
+        if (conversationId ===-1) return ; // don't fetch 
         
         try {
-            const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${convoId}`,
+            const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}`,
                 {method : 'GET',
                 headers : {
                     'Content-Type' : 'application/json'
@@ -30,7 +31,7 @@ function AIComponent(){
                 }
             )
 
-            console.log("messages should've been fetched by now ?")
+            console.log("fetchMessages: messages should've been fetched by now ?")
 
             if (!response.ok){
                 const errorMsg = await response.json()['error']
@@ -75,9 +76,9 @@ function AIComponent(){
     // TODO: unused for now
     // -----
 
-    const fetchConversation = async (convoId) => {
+    const fetchConversation = async (conversationId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/conversations?conversation_id=${convoId}`, {
+            const response = await fetch(`http://localhost:5000/api/conversations?conversation_id=${conversationId}`, {
                 headers : {
                     "Content-Type" : "application/json"
                 },
@@ -96,9 +97,9 @@ function AIComponent(){
     // ----
     // delete conversation
     // ----
-    const deleteConversation = async (convoId) => {
+    const deleteConversation = async (conversationId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${convoId}`, {
+            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${conversationId}`, {
              method : "DELETE"   
             } )
 
@@ -107,13 +108,16 @@ function AIComponent(){
                 throw new Error("Network response was not ok, ", errorMsg)
             }
 
-            const id = +convoMsgs[0].content // + : to convert string to int
-            if (convoId==id){
-                console.log("messages of current convo reset !")
+            // const id = +convoMsgs[0].content 
+            console.log("deleteConversation : conversationId === " + conversationId)
+            console.log("deleteConversation : convoId === " + convoId.current)
+            if (conversationId===convoId.current){
+                console.log("deleteConversation: messages of current convo reset !")
                 setConvoMsgs(null)
                 renderChatBox()
             }
-            setConversations(prev=>(prev.filter(msg=>msg.id!=id)))
+            console.log("deleteConversation: setConversations to exclude deleted convo")
+            setConversations(prev=>(prev.filter(msg=>msg.id!==conversationId)))
             renderConvoMenu()
 
         }
@@ -142,8 +146,11 @@ function AIComponent(){
         
         try{
             // TODO: user_id and problem_id are placeholders
-            setConvoId(1)
-            const response = await fetch("http://localhost:5000/api/ai" , {
+            console.log("sendMessage: convoId at this point : " + convoId.current)
+            if (convoId.current == 0){
+                convoId.current = 1 
+            }
+            const response = await fetch(`http://localhost:5000/api/ai?convoId=${convoId.current}` , {
                 method : "POST",
                 body: JSON.stringify({'message':message, 'user_id' : 1, 'problem_id': 1}),
                 headers : { 
@@ -153,9 +160,24 @@ function AIComponent(){
             if (!response.ok){
                 throw new Error("Network response was not ok")
             }
-           
-            fetchMessages(convoId)
-            fetchConversations()
+            
+            const result = await response.json()
+            const qna = [{"role":"user","content":message},{"role":"assistant","content":result.reply}]
+            setConvoMsgs(prev=>prev === null ? qna : [...prev,...qna])
+            console.log("sendMessage: convoMsgs now: " + convoMsgs)
+            setConversations(prev=>{
+                if (prev === null){
+                    return [{'id':convoId.current, 'created_at':new Date(), 'user_id' : 1,'problem_id' : 1}]
+                }
+                for (let i = 0 ; i < prev.length ; i++){
+                    if (prev[i].id===convoId.current){
+                        return;
+                    }
+                }
+                // POSSIBLE ISSUE: date format might differ from that of python's datetime library
+                return [...prev, {'id':convoId.current, 'created_at':new Date(), 'user_id' : 1,'problem_id' : 1}]
+            })
+            console.log("sendMessage: conversations now: " + conversations)
             return;
         } catch (err){
             console.error(err)
@@ -174,15 +196,24 @@ function AIComponent(){
 
     const renderConvoMenu = () => {
         if (conversations == null){
-            console.log("No conversations to render")
+            console.log("renderConvoMenu : No conversations to render")
             return (<></>);
         }
         return (<ul className="flex flex-col bg-purple-500">
             {conversations.map(convo=>(
                 <li key={convo.id} className="p-3 border-b hover:bg-purple-200">
                     <div className="flex items-center justify-between">
-                        <button className="front-semibold" onClick={() => fetchMessages(convo.id) }>Conversation ID: {convo.id}</button>
-                        <button className="absolute right-2 px-3 py-4" onClick={() => deleteConversation(convo.id)}>🗑️</button>
+                        <button className="front-semibold" onClick={() => {
+                            fetchMessages(convo.id)
+                            convoId.current = convo.id
+                            } }>Conversation ID: {convo.id}</button>
+                        <button className="absolute right-2 px-3 py-4" onClick={() => {
+                            deleteConversation(convo.id)
+                            if (convo.id === convoEdge.current){
+                                convoEdge.current = convoEdge.current === 1 ? 1: convoEdge.current-1
+                            } 
+                            // convoId.current = convo.id -1 
+                            }}>🗑️</button>
                     </div>
                 </li>
                 )) 
@@ -196,7 +227,7 @@ function AIComponent(){
 
     const renderChatBox = () => {
         if (convoMsgs == null){
-            console.log("No past conversation messages to render")
+            console.log("renderChatBox: No past conversation messages to render")
             return <></>
         }
         return (<div className="overflow-y-auto"><ul>
@@ -246,8 +277,15 @@ function AIComponent(){
                 {convoMsgs ? renderChatBox() : null}
                 <form action="/" onSubmit ={sendMessage}>
                     <input type="text" disabled={submitting} value={message} onChange = {handleChange} />
-                    <button className="bg-black hover:bg-slate-600" type ="submit" disabled={submitting || message.trim() == ""}>{submitting ? 'Submitting...' : 'Submit'}</button>
+                    <button className="bg-black hover:bg-slate-600" type ="submit" disabled={submitting || message.trim() === ""}>{submitting ? 'Submitting...' : 'Submit'}</button>
                 </form>
+                <button className ="border-spacing-2 border shadow-md py-4 font-bold" onClick ={()=> {
+                    if (convoMsgs !== null){
+                        convoEdge.current += 1
+                        convoId.current = convoEdge.current
+                        setConvoMsgs(null)
+                    }
+                }}>Create new conversation!!!</button>
                 <div></div>
                 
                 {error && (<div className ="bg-red-600 relative right-1">Error : {error.message}</div>) }
