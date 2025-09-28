@@ -269,7 +269,9 @@ def ai():
     problem_id = data.get("problem_id")
     message_text = data.get("message")
 
-    conversation = Conversations.query.filter_by(user_id=user_id,problem_id=problem_id).first()
+    id = request.args.get("convoId")
+
+    conversation = Conversations.query.filter_by(id=id).first()
     if not conversation : 
         conversation = Conversations(user_id = user_id, problem_id=problem_id)
         db.session.add(conversation)
@@ -300,6 +302,9 @@ def ai():
 def convos():
     id = request.args.get('conversation_id')
 
+    count = db.session.query(Conversations).count()
+    print("/api/conversations : Count of conversations, ", count)
+
     if not id :
         response = Conversations.query.all()
         result = []
@@ -323,7 +328,7 @@ def messages():
     if not messages :
         return {"error": "Something went wrong while loading the conversation"}, 400
 
-    return jsonify(messages), 200    
+    return jsonify(messages[2:]), 200    
 
 @app.delete("/api/deleteconvo")
 def delconvo():
@@ -339,6 +344,7 @@ def delconvo():
 
     db.session.delete(convo)
     db.session.commit()
+    count = db.session.query(Conversations).count()
     return {"success":"Conversation deleted successfully"} ,200
 
 
