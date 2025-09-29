@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from './Button';
 import './Navbar.css'
 
-function Navbar() {
+function Navbar({logged,setLogged}) {
     const [click, setClick] = useState(false);
     const [button, setButton] = useState(true);
 
@@ -17,6 +17,15 @@ function Navbar() {
             setButton(true);
         }
     };
+
+
+
+    useEffect(()=>{
+        const token = localStorage.getItem("token")
+        if (token){
+            setLogged(true)
+        }
+    }, [])
 
     useEffect(() => {
         showButton();
@@ -46,7 +55,9 @@ function Navbar() {
                                 Home
                             </Link>
                         </li>
-                        <li className='nav-item'>
+                        {!logged && 
+                        
+                        <div><li className='nav-item'>
                             <Link to='/login' className='nav-links' onClick={closeMobileMenu}>
                                 Login
                             </Link>
@@ -55,7 +66,15 @@ function Navbar() {
                             <Link to='/register' className='nav-links' onClick={closeMobileMenu}>
                                 Register
                             </Link>
-                        </li>
+                        </li></div>
+                         }
+                         {logged && 
+                         <li className="nav-item">
+                            <Link to='/' className="nav-links" onClick={()=>{
+                                localStorage.removeItem("token")
+                                setLogged(false)
+                            }}>
+                            Logout</Link></li>}
                     </ul>
                     {/* {button && <Button buttonStyle='btn--outline'>Register</Button>} */}
                 </div>
