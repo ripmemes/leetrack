@@ -1,6 +1,6 @@
 import React, {useState} from 'react'
 
-export const Form = ({formType,fieldArr,backendURL}) => {
+export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
     // here I need to create the default field dictionary 
     const defaultDictState = {}
 
@@ -39,25 +39,38 @@ export const Form = ({formType,fieldArr,backendURL}) => {
             
             
             if (response.status == 404){
-                throw new Error("Network response was not ok")
+                throw new Error(response.error)
             }
             if (!response.ok){
-                throw new Error('Network response was not ok')
+                throw new Error(response.error)
             } 
-            if (response.redirected){
-                window.location.href = response.url 
-                return; 
-            }
+            
+            
 
             const result = await response.json();
-            // Parse the JSON from backend
+            // in case of login
+            if (result.token){
+                console.log("handleSubmit, login condition worked!")
+                localStorage.setItem("token",result.token)
+                if (setLogged){
+                    setLogged(true)
+                }
+                setMessage({type: 'success', text: "Login successful!"});
+                setFormData(defaultDictState);
+                fetch("http://localhost:5000/",{
+                    headers: {
+                        "Authorization" : "Bearer " + localStorage.getItem("token")
+                    }
+                })
+            }
 
-            
+
             setMessage({type: 'success', text: result.message});
             setFormData(defaultDictState);
         } catch (error) {
-            console.error('Submission Error:' , error);
             setMessage({type : 'error', text: `Failed to submit form: ${error.message}`});
+            console.error('Submission Error:' , error.message);
+            
         } finally {
             setIsSubmitting(false);
         }
@@ -104,8 +117,8 @@ export const Form = ({formType,fieldArr,backendURL}) => {
     </>)
 };
 
-export const LoginForm = () => {
-  return <Form formType="Login" fieldArr={["Username/E-Mail","Password"]} backendURL="login" />  
+export const LoginForm = ({setLogged}) => {
+  return <Form formType="Login" fieldArr={["Username/E-Mail","Password"]} backendURL="login" setLogged={setLogged}/>  
 };
 export const RegisterForm = () => {
     return <Form formType="Register" fieldArr={["E-Mail","Password","Confirm Password","Username"]} backendURL="register" />  
