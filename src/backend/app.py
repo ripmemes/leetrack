@@ -9,9 +9,10 @@ import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 import os 
+import jwt
 
-
-from datetime import datetime
+from datetime import datetime, timezone , timedelta
+from functools import wraps
 
 
 
@@ -19,13 +20,12 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"),base_url="https://api.groq.com/openai/v1")
 
 app = Flask(__name__,template_folder='../frontend')
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///Users.sqlite3'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 CORS(app)
 app.secret_key = "random_placeholder_key"
 ph = PasswordHasher()
-
-# OpenAI setup
+SECRET_KEY = os.getenv("SECRET_AUTHENTIFICATION_KEY") # Configuring authentification key
+app.config["SECRET_KEY"] = SECRET_KEY
 
 # ------ 
 # Setting up the database 
@@ -35,7 +35,7 @@ class Users(db.Model):
     id = db.Column('id',db.Integer,primary_key=True)
     username = db.Column(db.String(200))
     email = db.Column(db.String(100))
-    password = db.Column(db.String(200))
+    password = db.Column(db.Text,nullable=False) # db.String is apparently  problematic ?
     conversations = db.relationship("Conversations",backref="user",lazy=True, cascade="all, delete-orphan")
 
 # -----
@@ -54,7 +54,7 @@ class Conversations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer,db.ForeignKey("users.id"))
     problem_id = db.Column(db.Integer, db.ForeignKey("problems.id"))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     messages = db.relationship("Messages",backref="conversation",lazy=True , cascade="all, delete-orphan")
 
     # def __init__(self,role,message):
@@ -66,7 +66,7 @@ class Messages(db.Model):
     conversation_id = db.Column(db.Integer,db.ForeignKey("conversations.id"),nullable=False)
     role = db.Column(db.String,nullable=False)
     content = db.Column(db.Text,nullable=False)
-    created_at = db.Column(db.DateTime,default=datetime.utcnow)
+    created_at = db.Column(db.DateTime,default=datetime.now(timezone.utc))
 
 # -----------------
 # To build past conversation
@@ -82,20 +82,39 @@ def build_prompt(conversation_id):
     return history
 
 with app.app_context():
+    # db.drop_all() # TO REMOVE BEFORE DEPLOYING : DELETES EVERYTHING
     db.create_all()
 
-#------ Use WTForm ? Keep commented out for now
+# ------------------
+# JWT Helper
+# ------------------
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if "Authorization" in request.headers:
+            auth_header = request.headers["Authorization"]
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+        if not token : 
+            return jsonify({"error": "Token is missing!"}) , 401 # 401 : Unauthorized
 
-# class RegisterForm(FlaskForm):
-#     username = StringField("username",[validators.DataRequired("Please enter your username")])
-#     email = EmailField("e-mail",[validators.DataRequired("Please enter your E-Mail"), validators.Email("Please enter your E-Mail")])
-#     password = PasswordField("password",[validators.DataRequired("Please enter your password")])
+        try:
+            data = jwt.decode(token, SECRET_KEY,algorithms=["HS256"])
+            request.user_id = data["user_id"]
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired"}) , 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error":"Invalid token"}), 401
+        
+        return f(*args, **kwargs)
+    return decorated
 
-#     submit = SubmitField("Submit")
-
-# Hashing Function to store passwords
-
-
+@app.route("/")
+@token_required
+def root():
+    print("user id is " ,request.user_id)
+    return jsonify({"message": f"Hello user {request.user_id}, welcome!"})
 
 @app.route("/register", methods = ['POST'])
 def register():
@@ -112,8 +131,8 @@ def register():
         print("error here")
         return {'error' : 'All fields are required'}, 400
 
-    # no need for try block like in sqlite ?
-    new_user = Users(username,email,password)
+    hashed_pw = ph.hash(password)
+    new_user = Users(username=username,email=email,password=hashed_pw)
     db.session.add(new_user)
     db.session.commit()
     return { 'message': 'User registered successfully'} , 201
@@ -121,23 +140,33 @@ def register():
 
 @app.route("/login",methods = ['POST'])
 def login():
+    
     data = request.json
-
-
+    
     user = Users.query.filter((Users.username == data['username/e-mail']) ).first()
-
+    print(user.id)
     if not user :
         return {'error': 'User not found'} , 404
-
+    
     try : 
         ph.verify( user.password , data['password'] )
     except Exception:
-        return {'error':"Invalid Password"},404
+        return {'error':"Invalid Password"},401
+    
+    tokenContent = {
+        "user_id" : user.id,
+        "exp" : datetime.now(timezone.utc) + timedelta(hours=1)
+    }
 
-    return redirect("http://localhost:3000/")
+    token = jwt.encode(tokenContent,SECRET_KEY,algorithm="HS256")
+
+    
+
+    return {"token":token} , 200
 
 
 @app.route("/api/daily")
+# @token_required
 def daily():
     # using GraphQL query
     query = """query questionOfToday {
@@ -185,6 +214,7 @@ def contest():
         return jsonify ({'error' : 'Fetching failed (backend)'}) , 404
     
 @app.route("/api/problems")
+# @token_required
 def problems():
     query ="""
         query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String, $searchKeyword: String) {
@@ -263,6 +293,7 @@ def problems():
     
 
 @app.route("/api/ai",methods=['POST'])
+# @token_required
 def ai():
     data = request.json 
     user_id = data.get("user_id")
@@ -299,6 +330,7 @@ def ai():
     return jsonify({"reply":reply}) , 200 
 
 @app.route("/api/conversations")
+# @token_required
 def convos():
     id = request.args.get('conversation_id')
 
@@ -319,6 +351,7 @@ def convos():
         return jsonify([{'id' : response.id ,'created_at' : response.created_at, 'user_id' : response.user_id, 'problem_id'  : response.problem_id}]), 200
 
 @app.route("/api/messages")
+# @token_required
 def messages():
     id = request.args.get('conversation_id')
     if not id :
@@ -331,6 +364,7 @@ def messages():
     return jsonify(messages[2:]), 200    
 
 @app.delete("/api/deleteconvo")
+# @token_required
 def delconvo():
     
     id = request.args.get('conversation_id')
