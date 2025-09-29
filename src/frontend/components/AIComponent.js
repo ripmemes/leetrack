@@ -260,12 +260,13 @@ function AIComponent(){
     return (
 
         <div>
+            <div className="flex justify-center items-center">
             <button onClick = {() => {
                 setIsOpen(!isOpen)
                 setMenuOpen(true)
                 fetchConversations()
             }
-            }>💬 Logo place holder 💬</button>
+            }>💬 Logo place holder 💬</button></div>
             {/* <button onClick = {() => setMenuOpen(!menuOpen)}> open conversation menu placeholder</button> */}
             {isOpen && <div className="border rounded-md"><div className ="flex flex-row">
                 {menuOpen && renderConvoMenu()}
