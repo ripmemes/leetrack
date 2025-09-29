@@ -171,7 +171,7 @@ function AIComponent(){
                 }
                 for (let i = 0 ; i < prev.length ; i++){
                     if (prev[i].id===convoId.current){
-                        return;
+                        return prev;
                     }
                 }
                 // POSSIBLE ISSUE: date format might differ from that of python's datetime library
@@ -201,13 +201,13 @@ function AIComponent(){
         }
         return (<ul className="flex flex-col bg-purple-500">
             {conversations.map(convo=>(
-                <li key={convo.id} className="p-3 border-b hover:bg-purple-200">
-                    <div className="flex items-center justify-between">
-                        <button className="front-semibold" onClick={() => {
+                <li key={convo.id} className=" border-b ">
+                    <div className="flex justify-between">
+                        <button className="mr-auto front-semibold border rounded-ls max-w-xs hover:bg-purple-200" onClick={() => {
                             fetchMessages(convo.id)
                             convoId.current = convo.id
                             } }>Conversation ID: {convo.id}</button>
-                        <button className="absolute right-2 px-3 py-4" onClick={() => {
+                        <button className="ml-auto px-3 py-4 border rounded-ls max-w-xs hover:bg-purple-200" onClick={() => {
                             deleteConversation(convo.id)
                             if (convo.id === convoEdge.current){
                                 convoEdge.current = convoEdge.current === 1 ? 1: convoEdge.current-1
@@ -230,34 +230,29 @@ function AIComponent(){
             console.log("renderChatBox: No past conversation messages to render")
             return <></>
         }
-        return (<div className="overflow-y-auto"><ul>
-            {convoMsgs.map((msg,index)=>{
-                
-                if (msg.role === "assistant"){
-                    // left 
-                    return (
-                        <li key={index} className="p-3 border-b bg-slate-400 hover:bg-gray-50"> 
-                            <div  className="flex flex-col">
-                                <span className="relative left-2">
-                                    <p>{msg.content}</p>
-                                </span>
-                            </div>
-                        </li>
-                    )
-                } else {
-                    return (
-                        <li key={msg.id} className="p-3 border-b bg-slate-600 hover:bg-gray-50"> 
-                            <div  className="flex flex-col">
-                                <span className="relative right-2">
-                                    <p>{msg.content}</p>
-                                </span>
-                            </div>
-                        </li>
-                    )
-                }
-            })}        
-        
-        </ul></div>)
+        return ( 
+        <div className="overflow-y-auto"><ul>
+            {convoMsgs.map((msg,index)=>(
+                <li key={index} className="hover:bg-gray-50 flex mb-2"> 
+                {msg.role === "assistant" ? (
+                    <div  className="bg-slate-400 px-3 py-4 rounded-lg max-w-xs">
+                        <span className="relative left-2">
+                            <p>{msg.content}</p>
+                        </span>
+                    </div>
+                ) : (<div  className="ml-auto bg-slate-600 px-3 py-2 rounded-lg max-w-xs right-4">
+                        <span className="relative right-2">
+                            <p>{msg.content}</p>
+                        </span>
+                    </div>  
+                ) }
+                </li>
+              
+                 
+            ))}
+            </ul></div>
+        )
+
     }
 
    
@@ -272,24 +267,26 @@ function AIComponent(){
             }
             }>💬 Logo place holder 💬</button>
             {/* <button onClick = {() => setMenuOpen(!menuOpen)}> open conversation menu placeholder</button> */}
-            {isOpen && <div className ="flex flex-row">
-                {menuOpen ? renderConvoMenu() : (<></>)}
-                {convoMsgs ? renderChatBox() : null}
-                <form action="/" onSubmit ={sendMessage}>
-                    <input type="text" disabled={submitting} value={message} onChange = {handleChange} />
-                    <button className="bg-black hover:bg-slate-600" type ="submit" disabled={submitting || message.trim() === ""}>{submitting ? 'Submitting...' : 'Submit'}</button>
-                </form>
-                <button className ="border-spacing-2 border shadow-md py-4 font-bold" onClick ={()=> {
-                    if (convoMsgs !== null){
-                        convoEdge.current += 1
-                        convoId.current = convoEdge.current
-                        setConvoMsgs(null)
-                    }
-                }}>Create new conversation!!!</button>
-                <div></div>
+            {isOpen && <div className="border rounded-md"><div className ="flex flex-row">
+                {menuOpen && renderConvoMenu()}
+                {convoMsgs && renderChatBox()}
+                </div><div className="flex flex-row items-center justify-center ">
+                    <form action="/" onSubmit ={sendMessage}>
+                        <input type="text" disabled={submitting} value={message} onChange = {handleChange} />
+                        <button className="bg-black hover:bg-slate-600" type ="submit" disabled={submitting || message.trim() === ""}>{submitting ? 'Submitting...' : 'Submit'}</button>
+                    </form>
+                    <button className ="border-spacing-2 border shadow-md py-4 mx-4 font-bold" onClick ={()=> {
+                        if (convoMsgs !== null){
+                            convoEdge.current += 1
+                            convoId.current = convoEdge.current
+                            setConvoMsgs(null)
+                        }
+                    }}>Create new conversation!!!</button>
+                </div>
+                
                 
                 {error && (<div className ="bg-red-600 relative right-1">Error : {error.message}</div>) }
-            </div> 
+                </div>
             }
         </div>
     )
