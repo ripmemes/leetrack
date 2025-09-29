@@ -66,7 +66,7 @@ export const PostCard = ({postCardURL,postCardName}) => {
 
             (dailyChallenge ?(
             
-            <div className="relative w-full p-4">
+            <div className="w-full p-4">
             
                 <div className="absolute top-4 right-36 w-1/4 min-w-[280px] max-w-sm"> 
                 <div className="rounded-2xl shadow-lg overflow-hidden border border-slate-200 bg-white">
