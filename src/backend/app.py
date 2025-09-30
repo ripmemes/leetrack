@@ -64,6 +64,7 @@ class Conversations(db.Model):
 class Messages(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(db.Integer,db.ForeignKey("conversations.id"),nullable=False)
+    user_id = db.Column(db.Integer,db.ForeignKey("users.id"))
     role = db.Column(db.String,nullable=False)
     content = db.Column(db.Text,nullable=False)
     created_at = db.Column(db.DateTime,default=datetime.now(timezone.utc))
@@ -71,8 +72,8 @@ class Messages(db.Model):
 # -----------------
 # To build past conversation
 # -----------------
-def build_prompt(conversation_id):
-    msgs = Messages.query.filter_by(conversation_id=conversation_id).order_by(Messages.created_at).all()
+def build_prompt(conversation_id,user_id):
+    msgs = Messages.query.filter_by(conversation_id=conversation_id,user_id=user_id).order_by(Messages.created_at).all()
     history = [
         {"role":"system","content": (f"{conversation_id}")},
         {"role":"system","content": "You are an algorithm tutor. Do not provide full code. Only give explanations, hints, and pseudocode."}
@@ -115,6 +116,11 @@ def token_required(f):
 def root():
     print("user id is " ,request.user_id)
     return jsonify({"message": f"Hello user {request.user_id}, welcome!"})
+
+@app.route("/userId")
+@token_required
+def userId():
+    return jsonify({"userId":request.user_id})
 
 @app.route("/register", methods = ['POST'])
 def register():
@@ -302,17 +308,17 @@ def ai():
 
     id = request.args.get("convoId")
 
-    conversation = Conversations.query.filter_by(id=id).first()
+    conversation = Conversations.query.filter_by(id=id,user_id=user_id).first()
     if not conversation : 
         conversation = Conversations(user_id = user_id, problem_id=problem_id)
         db.session.add(conversation)
         db.session.commit()
 
-    user_msg = Messages(conversation_id=conversation.id, role="user",content=message_text)
+    user_msg = Messages(conversation_id=conversation.id,user_id=user_id, role="user",content=message_text)
     db.session.add(user_msg)
     db.session.commit()
 
-    prompt = build_prompt(conversation.id)
+    prompt = build_prompt(conversation.id,user_id)
 
     response = client.chat.completions.create(model="llama-3.1-8b-instant",
                                             messages=prompt)
@@ -323,7 +329,7 @@ def ai():
     if "```" in reply :
         reply = "⚠️ Debug reply: Full code is not allowed"
 
-    ai_msg = Messages(conversation_id=conversation.id, role="assistant",content=reply)
+    ai_msg = Messages(conversation_id=conversation.id,user_id=user_id, role="assistant",content=reply)
     db.session.add(ai_msg)
     db.session.commit()
 
@@ -332,13 +338,19 @@ def ai():
 @app.route("/api/conversations")
 # @token_required
 def convos():
+    print("here?")
     id = request.args.get('conversation_id')
+    user_id = request.args.get('user_id')
+    
+    if not user_id :
+        return {"error": "user_id is required"}, 400
+    
 
     count = db.session.query(Conversations).count()
     print("/api/conversations : Count of conversations, ", count)
 
     if not id :
-        response = Conversations.query.all()
+        response = Conversations.query.filter_by(user_id=user_id)
         result = []
         for convo in response :
             result.append({'id' : convo.id , 'created_at' : convo.created_at, 'user_id' : convo.user_id, 'problem_id'  : convo.problem_id})
@@ -354,10 +366,13 @@ def convos():
 # @token_required
 def messages():
     id = request.args.get('conversation_id')
+    user_id = request.args.get('user_id')
     if not id :
         return {"error": "conversation_id is required"}, 400
+    if not user_id :
+        return {"error": "user_id is required"}, 400
 
-    messages = build_prompt(id)
+    messages = build_prompt(id,user_id)
     if not messages :
         return {"error": "Something went wrong while loading the conversation"}, 400
 
@@ -368,10 +383,14 @@ def messages():
 def delconvo():
     
     id = request.args.get('conversation_id')
+    user_id = request.args.get('user_id')
     if not id : 
         return {"error": "conversation_id is required"} , 400
+
+    if not user_id :
+        return {"error": "user_id is required"}, 400
     
-    convo = Conversations.query.filter_by(id = id).first()
+    convo = Conversations.query.filter_by(id = id,user_id=user_id).first()
 
     if not convo:
         return {'error':'Conversation not found!'}, 404
