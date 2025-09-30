@@ -1,8 +1,10 @@
 import React, {useState} from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
     // here I need to create the default field dictionary 
     const defaultDictState = {}
+    const navigate = useNavigate()
 
     for (let i = 0 ; i < fieldArr.length ; i++){
         defaultDictState[fieldArr[i].toLowerCase()] = '';
@@ -62,17 +64,17 @@ export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
                         "Authorization" : "Bearer " + localStorage.getItem("token")
                     }
                 })
+            } else {
+                setMessage({type: 'success', text: "Register Successful!"});
             }
-
-
-            setMessage({type: 'success', text: result.message});
-            setFormData(defaultDictState);
         } catch (error) {
             setMessage({type : 'error', text: `Failed to submit form: ${error.message}`});
             console.error('Submission Error:' , error.message);
             
         } finally {
             setIsSubmitting(false);
+            setFormData(defaultDictState);
+            navigate("/")
         }
     }
 
