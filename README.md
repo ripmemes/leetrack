@@ -52,7 +52,7 @@ DATABASE_URL=sqlite:///leetrack.db
   - Infinite scroll / lazy loading of problems and client-side filters (difficulty / language / topic).
 - **AI tutoring (prototype)**
   - Conversations are stored per-user; backend forwards conversation history to an LLM (via OpenAI/Groq client) and stores assistant replies.
-  - Notes: assistant replies are post-processed to avoid returning full code blocks, DON'T FORGET to add your openai or grok api key in .env.
+  - Notes: assistant replies are post-processed to avoid returning full code blocks, DON'T FORGET to add your openai or groq api key in .env.
 - **Basic React UI**
   - Pages for home, login, register; components for contests, daily challenge, problem list and AI chat. Tailwind used for styling.
 
