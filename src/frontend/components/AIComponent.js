@@ -1,6 +1,6 @@
 import React , {useState ,useRef} from 'react'
 
-function AIComponent(){
+function AIComponent({userId}){
 
     const [conversations , setConversations] = useState(null) 
     const [convoMsgs , setConvoMsgs ] = useState(null)
@@ -23,7 +23,7 @@ function AIComponent(){
         if (conversationId ===-1) return ; // don't fetch 
         
         try {
-            const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}`,
+            const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}&user_id=${userId}`,
                 {method : 'GET',
                 headers : {
                     'Content-Type' : 'application/json'
@@ -55,7 +55,7 @@ function AIComponent(){
 
     const fetchConversations = async () => {
         try {
-            const response = await fetch("http://localhost:5000/api/conversations", {
+            const response = await fetch(`http://localhost:5000/api/conversations?user_id=${userId}`, {
                 headers : {
                     "Content-Type" : "application/json"
                 },
@@ -78,7 +78,7 @@ function AIComponent(){
 
     const fetchConversation = async (conversationId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/conversations?conversation_id=${conversationId}`, {
+            const response = await fetch(`http://localhost:5000/api/conversations?conversation_id=${conversationId}&user_id=${userId}`, {
                 headers : {
                     "Content-Type" : "application/json"
                 },
@@ -99,7 +99,7 @@ function AIComponent(){
     // ----
     const deleteConversation = async (conversationId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${conversationId}`, {
+            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${conversationId}&user_id=${userId}`, {
              method : "DELETE"   
             } )
 
@@ -136,7 +136,6 @@ function AIComponent(){
 
     // ----
     // send message to backend, to fetch reply through api request to openai
-    // TODO : get rid of unnecessary fetching, alternatively update local state in frontend
     // ----
 
     const sendMessage = async (e) =>{
@@ -145,14 +144,14 @@ function AIComponent(){
         setError(false)
         
         try{
-            // TODO: user_id and problem_id are placeholders
+            // TODO: problem_id is a placeholder
             console.log("sendMessage: convoId at this point : " + convoId.current)
             if (convoId.current == 0){
                 convoId.current = 1 
             }
             const response = await fetch(`http://localhost:5000/api/ai?convoId=${convoId.current}` , {
                 method : "POST",
-                body: JSON.stringify({'message':message, 'user_id' : 1, 'problem_id': 1}),
+                body: JSON.stringify({'message':message, 'user_id' : userId, 'problem_id': 1}),
                 headers : { 
                     "Content-Type" : "application/json"
                 }
