@@ -1,7 +1,7 @@
 import React, {useState} from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
+export const Form = ({formType,fieldArr,backendURL,setLogged,setUserId}) => {
     // here I need to create the default field dictionary 
     const defaultDictState = {}
     const navigate = useNavigate()
@@ -59,13 +59,17 @@ export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
                 }
                 setMessage({type: 'success', text: "Login successful!"});
                 setFormData(defaultDictState);
-                fetch("http://localhost:5000/",{
+                const response2= await fetch("http://localhost:5000/userId",{
                     headers: {
                         "Authorization" : "Bearer " + localStorage.getItem("token")
                     }
                 })
+                const result2 = await response2.json()
+                setUserId(result2['userId'])
+                console.log("USER ID IS : " + result2['userId'])
+                navigate("/")
             } else {
-                setMessage({type: 'success', text: "Register Successful!"});
+                setMessage({type: 'success', text: "Register Successful! Please login."});
             }
         } catch (error) {
             setMessage({type : 'error', text: `Failed to submit form: ${error.message}`});
@@ -74,7 +78,6 @@ export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
         } finally {
             setIsSubmitting(false);
             setFormData(defaultDictState);
-            navigate("/")
         }
     }
 
@@ -119,8 +122,8 @@ export const Form = ({formType,fieldArr,backendURL,setLogged}) => {
     </>)
 };
 
-export const LoginForm = ({setLogged}) => {
-  return <Form formType="Login" fieldArr={["Username/E-Mail","Password"]} backendURL="login" setLogged={setLogged}/>  
+export const LoginForm = ({setLogged, setUserId}) => {
+  return <Form formType="Login" fieldArr={["Username/E-Mail","Password"]} backendURL="login" setLogged={setLogged} setUserId={setUserId}/>  
 };
 export const RegisterForm = () => {
     return <Form formType="Register" fieldArr={["E-Mail","Password","Confirm Password","Username"]} backendURL="register" />  
