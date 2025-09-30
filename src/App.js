@@ -13,12 +13,14 @@ function App() {
         if (token) setLogged(true)
     },[])
 
+    const [userId, setUserId] = useState(null)
+
     return ( <>
         <Router>
             <Navbar logged={logged} setLogged={setLogged} />
             <Routes>
-            <Route path='/' element = { <Home logged={logged} setLogged={setLogged}/>} />
-            <Route path='/login' element = { <LoginForm setLogged={setLogged}/>} />
+            <Route path='/' element = { <Home logged={logged} setLogged={setLogged} userId={userId}/>} />
+            <Route path='/login' element = { <LoginForm setLogged={setLogged} setUserId={setUserId}/>} />
             <Route path='/register' element = { <RegisterForm/>} />
             </Routes>
         </Router>
