@@ -4,7 +4,7 @@ import ContestBar from './ContestBar.js'
 import ProblemLst from './ProblemLst.js'
 import AIComponent from './AIComponent.js';
 
-function Home({logged,setLogged}){
+function Home({logged,setLogged , userId}){
 
     useEffect(() => {
         const token = localStorage.getItem("token")
@@ -33,7 +33,7 @@ function Home({logged,setLogged}){
             <div><ContestBar></ContestBar></div>
             <div className=""><Daily/></div>
             <div className="bg-slate-200 border rounded-lg "><ProblemLst/></div>
-            <div><AIComponent/></div>
+            <div><AIComponent userId={userId}/>{userId}</div>
         </div>  }
     </div>  
     )
