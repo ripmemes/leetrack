@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from './Button';
-import './Navbar.css'
 
 function Navbar({logged,setLogged}) {
     const [click, setClick] = useState(false);
@@ -40,37 +39,41 @@ function Navbar({logged,setLogged}) {
 
     return (
         <>
-            <nav className="navbar " >
-                <div className="navbar-container">
-                    <Link to="/" className="navbar-logo" onClick={closeMobileMenu}>
-                        Leetrack <i className="fa-solid fa-house"></i>
+            <nav className="bg-gradient-to-r from-neutral-900 to-neutral-800 h-20 flex justify-center items-center sticky top-0 z-[999]" >
+                <div className="flex justify-between items-center h-20 w-full max-w-[1500px] px-6">
+                    <Link to="/" className="text-white text-2xl font-bold flex items-center cursor-pointer" onClick={closeMobileMenu}>
+                        Leetrack 
+                        {/* <i className="fa-solid fa-house ml-2"></i> */}
                     </Link>
-                    <div className='menu-icon' onClick={handleClick}>
+                    <div className='text-white text-2xl cursor-pointer md:hidden' onClick={handleClick}>
                         {/* <i className={click ? 'fas fa-times' : 'fas fa-bars'} /> */}
-                        <p className="temp">Menu icon</p>
+                        placeholder
                     </div>
-                    <ul className={click ? 'nav-menu active' : 'nav-menu'} >
-                        <li className='nav-item'>
-                            <Link to='/' className='nav-links' onClick={closeMobileMenu}>
+                    <ul className={`absolute md:static top-20 left-0 w-full md:w-auto bg-neutral-900 md:bg-transparent 
+                        flex flex-col md:flex-row md:space-x-6 
+                        transition-all duration-500 ease-in-out 
+                        ${click ? "left-0 opacity-100" : "left-[-100%] opacity-0 md:opacity-100"}`} >
+                        <li>
+                            <Link to='/' className='text-white px-4 py-2 block hover:border-b-4 hover:border-white transition duration-200' onClick={closeMobileMenu}>
                                 Home
                             </Link>
                         </li>
                         {!logged && 
                         
-                        <div><li className='nav-item'>
-                            <Link to='/login' className='nav-links' onClick={closeMobileMenu}>
+                        <><li>
+                            <Link to='/login' className='text-white px-4 py-2 block hover:border-b-4 hover:border-white transition duration-200' onClick={closeMobileMenu}>
                                 Login
                             </Link>
                         </li>
-                        <li className='nav-item'>
-                            <Link to='/register' className='nav-links' onClick={closeMobileMenu}>
+                        <li>
+                            <Link to='/register' className='text-white px-4 py-2 block hover:border-b-4 hover:border-white transition duration-200' onClick={closeMobileMenu}>
                                 Register
                             </Link>
-                        </li></div>
+                        </li></>
                          }
                          {logged && 
-                         <li className="nav-item">
-                            <Link to='/' className="nav-links" onClick={()=>{
+                         <li>
+                            <Link to='/' className="text-white px-4 py-2 block hover:border-b-4 hover:border-white transition duration-200" onClick={()=>{
                                 localStorage.removeItem("token")
                                 setLogged(false)
                             }}>
