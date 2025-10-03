@@ -1,70 +1,95 @@
-# Getting Started with Create React App
+# Leetrack
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A simple LeetCode progress tracker , **Flask** backend + **React** frontend.  
+Work-in-progress: built to learn full-stack patterns, track practice, and prototype an AI-assisted algorithm tutor.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🔧 Quick setup
 
-### `npm start`
+> **Frontend**
+```bash
+cd frontend
+npm install
+npm start
+# Frontend runs on http://localhost:3000 by default
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+> **Backend**
+```bash
+# create & activate virtualenv (example for Linux/macOS)
+python3 -m venv .venv
+source .venv/bin/activate
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+# (Windows - PowerShell)
+# .venv\Scripts\Activate.ps1
 
-### `npm test`
+# install dependencies
+pip install -r requirements.txt
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# create a .env file in backend (see example below), then start:
+python3 src/backend/app.py
+# Backend runs on http://localhost:5000 by default
+```
 
-### `npm run build`
+**Example `.env`** (place in `backend/` or where `app.py` reads it):
+```
+OPENAI_API_KEY=your_openai_or_groq_api_key_here
+SECRET_AUTHENTIFICATION_KEY=your_jwt_secret_here
+DATABASE_URL=sqlite:///leetrack.db
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## ✨ Current features (backend & frontend)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Authentication**
+  - Registration & login endpoints using **Argon2** (argon2-cffi) for password hashing.
+  - JWT-based tokens issued on login (stored in localStorage by the frontend for now).
+- **LeetCode integration**
+  - Fetches daily challenge, upcoming contests and problem lists using LeetCode GraphQL.
+- **Problems UI**
+  - Infinite scroll / lazy loading of problems and client-side filters (difficulty / language / topic).
+- **AI tutoring (prototype)**
+  - Conversations are stored per-user; backend forwards conversation history to an LLM (via OpenAI/Groq client) and stores assistant replies.
+  - Notes: assistant replies are post-processed to avoid returning full code blocks, DON'T FORGET to add your openai or groq api key in .env.
+- **Basic React UI**
+  - Pages for home, login, register; components for contests, daily challenge, problem list and AI chat. Tailwind used for styling.
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🧭 API endpoints (summary)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- `POST /register` — create user (expects JSON: `username`, `e-mail`, `password`)
+- `POST /login` — log in (returns JWT token)
+- `GET /userId` — returns `userId` for the token
+- `GET /api/daily` — LeetCode daily challenge
+- `GET /api/contest` — upcoming LeetCode contests
+- `GET /api/problems` — problem list (supports `skip`, `limit`, `difficulties`, `languages`, `topics`)
+- `POST /api/ai?convoId=<id>` — send user message to the AI assistant (body: `user_id`, `problem_id`, `message`)
+- `GET /api/conversations?user_id=<id>` — list user conversations
+- `GET /api/messages?conversation_id=<id>&user_id=<id>` — retrieve conversation messages
+- `DELETE /api/deleteconvo?conversation_id=<id>&user_id=<id>` — delete a conversation
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+> Some routes require a `Authorization: Bearer <token>` header (see `Home.js` / login flow).
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## 🔐 Current security notes & limitations
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- **Passwords** are hashed with Argon2 .  
+- **JWT tokens** are currently stored in the browser's `localStorage` by the frontend — this is easier for development but less secure than HttpOnly cookies (XSS risk). See TODOs for planned improvements.
+- `app.run(debug=True)` and any `db.drop_all()` usage must **never** be used in production — they are useful for local dev only.
+- Make sure to **never** commit your `.env` containing secrets.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## 🛠️ Roadmap / TODOs
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- [ ] **Code Execution Page** — a sandboxed editor where users submit code and see test results (secure runner or third-party service).  
+- [ ] **Move JWTs to HttpOnly cookies** (server-set cookies) for better security and CSRF protection.  
+- [ ] **Per-problem pages** with detailed statements, tags and user progress tracking (solved / attempted / starred).  
+- [ ] **Statistics dashboard** (charts for solved problems by difficulty/topic).  
+- [ ] **Pagination & backend optimizations** (reduce overfetching / improve response times).  
+- [ ] **CI / tests / Dockerization** for reproducible setup and deployment.  
+- [ ] **Improve LLM moderation** and ensure the assistant never returns full working code (only hints/pseudocode).
