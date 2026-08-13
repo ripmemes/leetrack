@@ -1,293 +1,307 @@
-import React , {useState ,useRef} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
-function AIComponent({userId}){
+function AIComponent({ userId }) {
+    const [conversations, setConversations] = useState([])
+    const [convoMsgs, setConvoMsgs] = useState(null)
+    const [message, setMessage] = useState('')
+    const [isOpen, setIsOpen] = useState(false) // Hide or show AI Dialog box
+    const [isMinimized, setIsMinimized] = useState(false)
+    const [menuOpen, setMenuOpen] = useState(true) // Hide or show conversations menu
+    const [submitting, setSubmitting] = useState(false)
+    const [error, setError] = useState(null) // changed to null
 
-    const [conversations , setConversations] = useState(null) 
-    const [convoMsgs , setConvoMsgs ] = useState(null)
-    
-    const convoId = useRef(1) // this is the pointer to currently observed covnersation
+    const convoId = useRef(1) // this is the pointer to the currently observed conversation
     const convoEdge = useRef(1) // this is the pointer to the id of the next conversation
-    const [message,setMessage] = useState("")
 
-    // ------
-    const [isOpen , setIsOpen] = useState(false) // Hide or show AI Diaglog box
-    const [menuOpen, setMenuOpen] = useState(false) // Hide or Show conversations menu
-    // ------
-    const [submitting, setSubmitting] = useState(null)
-    const [error , setError] = useState(false)
-
-    // ------
-    // fetch messages for a given conversation
-    // ------
-    const fetchMessages = async (conversationId) => {
-        if (conversationId ===-1) return ; // don't fetch 
-        
+    const fetchConversations = useCallback(async () => {
         try {
-            const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}&user_id=${userId}`,
-                {method : 'GET',
-                headers : {
-                    'Content-Type' : 'application/json'
-                }
+            const response = await fetch(`http://localhost:5000/api/conversations?user_id=${userId}`, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                method: 'GET'
+            })
+
+            if (!response.ok) {
+                throw new Error('Could not fetch conversations')
+            }
+
+            const result = await response.json()
+            setConversations(result || [])
+        } catch (err) {
+            console.error('Error fetching conversations', err)
+            setConversations([])
+        }
+    }, [userId])
+
+    useEffect(() => {
+        if (isOpen && userId) {
+            fetchConversations()
+        }
+    }, [isOpen, userId, fetchConversations])
+
+    const fetchMessages = async (conversationId) => {
+        if (conversationId === -1) return
+
+        try {
+            const response = await fetch(
+                `http://localhost:5000/api/messages?conversation_id=${conversationId}&user_id=${userId}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 }
             )
 
-            console.log("fetchMessages: messages should've been fetched by now ?")
-
-            if (!response.ok){
+            if (!response.ok) {
                 const errorMsg = await response.json()['error']
-                throw new Error("Network response was not ok, ", errorMsg)
+                throw new Error(errorMsg || 'Network response was not ok')
             }
 
             const res = await response.json()
             setConvoMsgs(res)
-
-        } catch (err){
-            console.error("Error fetching messages for this conversation")
+        } catch (err) {
+            console.error('Error fetching messages for this conversation', err)
             setError(err)
             setConvoMsgs(null)
         }
     }
 
-
-    // -----
-    // fetch conversations 
-    // -----
-
-    const fetchConversations = async () => {
-        try {
-            const response = await fetch(`http://localhost:5000/api/conversations?user_id=${userId}`, {
-                headers : {
-                    "Content-Type" : "application/json"
-                },
-                method : "GET"
-            })
-
-            const result = await response.json()
-            setConversations(result)
-        }
-        catch (err){
-            console.error("Error fetching conversations")
-            setConversations([])
-        }
-    }
-
-    // -----
-    // fetch data of a single conversation
-    // TODO: unused for now
-    // -----
-
-    const fetchConversation = async (conversationId) => {
-        try {
-            const response = await fetch(`http://localhost:5000/api/conversations?conversation_id=${conversationId}&user_id=${userId}`, {
-                headers : {
-                    "Content-Type" : "application/json"
-                },
-                method : "GET"
-            })
-
-            const result = await response.json()
-            // do something with it
-        }
-        catch (err){
-            console.error("Error fetching conversations")
-            setConversations([])
-        }
-    } 
-
-    // ----
-    // delete conversation
-    // ----
     const deleteConversation = async (conversationId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/deleteconvo?conversation_id=${conversationId}&user_id=${userId}`, {
-             method : "DELETE"   
-            } )
+            const response = await fetch(
+                `http://localhost:5000/api/deleteconvo?conversation_id=${conversationId}&user_id=${userId}`,
+                {
+                    method: 'DELETE'
+                }
+            )
 
-            if (!response.ok){
+            if (!response.ok) {
                 const errorMsg = await response.json()['error']
-                throw new Error("Network response was not ok, ", errorMsg)
+                throw new Error(errorMsg || 'Could not delete conversation')
             }
 
-            // const id = +convoMsgs[0].content 
-            console.log("deleteConversation : conversationId === " + conversationId)
-            console.log("deleteConversation : convoId === " + convoId.current)
-            if (conversationId===convoId.current){
-                console.log("deleteConversation: messages of current convo reset !")
+            if (conversationId === convoId.current) {
                 setConvoMsgs(null)
-                renderChatBox()
             }
-            console.log("deleteConversation: setConversations to exclude deleted convo")
-            setConversations(prev=>(prev.filter(msg=>msg.id!==conversationId)))
-            renderConvoMenu()
 
-        }
-        catch (err){
-            console.error("Error deleting conversation: ", err)
+            setConversations((prev) => prev.filter((msg) => msg.id !== conversationId))
+        } catch (err) {
+            console.error('Error deleting conversation: ', err)
         }
     }
 
-    // ----
-    // update the message state according to field input
-    // ----
-
-    const handleChange= (e) => {
+    const handleChange = (e) => {
         setMessage(e.target.value)
     }
 
-    // ----
-    // send message to backend, to fetch reply through api request to openai
-    // ----
-
-    const sendMessage = async (e) =>{
+    const sendMessage = async (e) => {
         e.preventDefault()
         setSubmitting(true)
-        setError(false)
-        
-        try{
-            // TODO: problem_id is a placeholder
-            console.log("sendMessage: convoId at this point : " + convoId.current)
-            if (convoId.current == 0){
-                convoId.current = 1 
+        setError(null)
+
+        try {
+            if (convoId.current === 0) {
+                convoId.current = 1
             }
-            const response = await fetch(`http://localhost:5000/api/ai?convoId=${convoId.current}` , {
-                method : "POST",
-                body: JSON.stringify({'message':message, 'user_id' : userId, 'problem_id': 1}),
-                headers : { 
-                    "Content-Type" : "application/json"
+
+            const response = await fetch(`http://localhost:5000/api/ai?convoId=${convoId.current}`, {
+                method: 'POST',
+                body: JSON.stringify({ message, user_id: userId, problem_id: 1 }),
+                headers: {
+                    'Content-Type': 'application/json'
                 }
             })
-            if (!response.ok){
-                throw new Error("Network response was not ok")
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok')
             }
-            
+
             const result = await response.json()
-            const qna = [{"role":"user","content":message},{"role":"assistant","content":result.reply}]
-            setConvoMsgs(prev=>prev === null ? qna : [...prev,...qna])
-            console.log("sendMessage: convoMsgs now: " + convoMsgs)
-            setConversations(prev=>{
-                if (prev === null){
-                    return [{'id':convoId.current, 'created_at':new Date(), 'user_id' : 1,'problem_id' : 1}]
+            const qna = [
+                { role: 'user', content: message },
+                { role: 'assistant', content: result.reply }
+            ]
+
+            setConvoMsgs((prev) => (prev === null ? qna : [...prev, ...qna]))
+            setConversations((prev) => {
+                if (prev.some((item) => item.id === convoId.current)) {
+                    return prev
                 }
-                for (let i = 0 ; i < prev.length ; i++){
-                    if (prev[i].id===convoId.current){
-                        return prev;
+
+                return [
+                    ...prev,
+                    {
+                        id: convoId.current,
+                        created_at: new Date(),
+                        user_id: userId,
+                        problem_id: 1
                     }
-                }
-                // POSSIBLE ISSUE: date format might differ from that of python's datetime library
-                return [...prev, {'id':convoId.current, 'created_at':new Date(), 'user_id' : 1,'problem_id' : 1}]
+                ]
             })
-            console.log("sendMessage: conversations now: " + conversations)
-            return;
-        } catch (err){
+        } catch (err) {
             console.error(err)
-            setError(true)
-        } finally{
+            setError(err)
+        } finally {
             setSubmitting(false)
-            setMessage("")
-            renderChatBox()
-            renderConvoMenu()
+            setMessage('')
         }
     }
-    
-    // -----
-    // Render Conversations Menu
-    // -----
 
-    const renderConvoMenu = () => {
-        if (conversations == null){
-            console.log("renderConvoMenu : No conversations to render")
-            return (<></>);
-        }
-        return (<ul className="flex flex-col bg-purple-500">
-            {conversations.map(convo=>(
-                <li key={convo.id} className=" border-b ">
-                    <div className="flex justify-between">
-                        <button className="mr-auto front-semibold border rounded-ls max-w-xs hover:bg-purple-200" onClick={() => {
-                            fetchMessages(convo.id)
-                            convoId.current = convo.id
-                            } }>Conversation ID: {convo.id}</button>
-                        <button className="ml-auto px-3 py-4 border rounded-ls max-w-xs hover:bg-purple-200" onClick={() => {
-                            deleteConversation(convo.id)
-                            if (convo.id === convoEdge.current){
-                                convoEdge.current = convoEdge.current === 1 ? 1: convoEdge.current-1
-                            } 
-                            // convoId.current = convo.id -1 
-                            }}>🗑️</button>
-                    </div>
-                </li>
-                )) 
-            }
-        </ul>)
-    }
-
-    // -----
-    // Render Chat Box
-    // -----
+    const renderConvoMenu = () => (
+        <div className="w-40 border-r border-slate-200 bg-slate-50 p-2">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Chats</p>
+            <ul className="space-y-2">
+                {conversations.map((convo) => (
+                    <li key={convo.id} className="rounded-lg border border-slate-200 bg-white">
+                        <div className="flex items-center justify-between gap-2 p-2">
+                            <button
+                                className="flex-1 text-left text-xs font-medium text-slate-700 hover:text-orange-600"
+                                onClick={() => {
+                                    fetchMessages(convo.id)
+                                    convoId.current = convo.id
+                                }}
+                            >
+                                Chat #{convo.id}
+                            </button>
+                            <button
+                                className="text-slate-400 hover:text-red-500"
+                                onClick={() => deleteConversation(convo.id)}
+                                aria-label="Delete conversation"
+                            >
+                                🗑️
+                            </button>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    )
 
     const renderChatBox = () => {
-        if (convoMsgs == null){
-            console.log("renderChatBox: No past conversation messages to render")
-            return <></>
+        if (!convoMsgs || convoMsgs.length === 0) {
+            return (
+                <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                    Start a new conversation
+                </div>
+            )
         }
-        return ( 
-        <div className="overflow-y-auto"><ul>
-            {convoMsgs.map((msg,index)=>(
-                <li key={index} className="hover:bg-gray-50 flex mb-2"> 
-                {msg.role === "assistant" ? (
-                    <div  className="bg-slate-400 px-3 py-4 rounded-lg max-w-xs">
-                        <span className="relative left-2">
-                            <p>{msg.content}</p>
-                        </span>
-                    </div>
-                ) : (<div  className="ml-auto bg-slate-600 px-3 py-2 rounded-lg max-w-xs right-4">
-                        <span className="relative right-2">
-                            <p>{msg.content}</p>
-                        </span>
-                    </div>  
-                ) }
-                </li>
-              
-                 
-            ))}
-            </ul></div>
-        )
 
+        return (
+            <div className="h-full overflow-y-auto p-3">
+                <ul className="space-y-2">
+                    {convoMsgs.map((msg, index) => (
+                        <li key={`${msg.role}-${index}`} className={`flex ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                            <div
+                                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                                    msg.role === 'assistant'
+                                        ? 'bg-slate-200 text-slate-800'
+                                        : 'bg-orange-500 text-white'
+                                }`}
+                            >
+                                {msg.content}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )
     }
 
-   
-
     return (
+        <div className="relative">
+            {!isOpen ? (
+                <button
+                    onClick={() => {
+                        setIsOpen(true)
+                        setIsMinimized(false)
+                        setMenuOpen(true)
+                        fetchConversations()
+                    }}
+                    className="flex items-center gap-2 rounded-full border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl"
+                >
+                    <span className="text-lg">💬</span>
+                    Chat with AI Assistant
+                </button>
+            ) : (
+                <div className="w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                    <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
+                        <div>
+                            <p className="text-sm font-semibold">AI Assistant</p>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">LeetTrack</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-700"
+                                onClick={() => setIsMinimized((prev) => !prev)}
+                            >
+                                {isMinimized ? 'Open' : 'Minimize'}
+                            </button>
+                            <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-700"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Hide
+                            </button>
+                        </div>
+                    </div>
 
-        <div>
-            <div className="flex justify-center items-center">
-            <button onClick = {() => {
-                setIsOpen(!isOpen)
-                setMenuOpen(true)
-                fetchConversations()
-            }
-            }>💬 Logo place holder 💬</button></div>
-            {/* <button onClick = {() => setMenuOpen(!menuOpen)}> open conversation menu placeholder</button> */}
-            {isOpen && <div className="border rounded-md"><div className ="flex flex-row">
-                {menuOpen && renderConvoMenu()}
-                {convoMsgs && renderChatBox()}
-                </div><div className="flex flex-row items-center justify-center ">
-                    <form action="/" onSubmit ={sendMessage}>
-                        <input type="text" disabled={submitting} value={message} onChange = {handleChange} />
-                        <button className="bg-black hover:bg-slate-600" type ="submit" disabled={submitting || message.trim() === ""}>{submitting ? 'Submitting...' : 'Submit'}</button>
-                    </form>
-                    <button className ="border-spacing-2 border shadow-md py-4 mx-4 font-bold" onClick ={()=> {
-                        if (convoMsgs !== null){
-                            convoEdge.current += 1
-                            convoId.current = convoEdge.current
-                            setConvoMsgs(null)
-                        }
-                    }}>Create new conversation!!!</button>
+                    {!isMinimized && (
+                        <>
+                            <div className="flex h-[420px]">
+                                {menuOpen && renderConvoMenu()}
+                                <div className="flex-1 bg-slate-50">{renderChatBox()}</div>
+                            </div>
+
+                            <div className="border-t border-slate-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <button
+                                        className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 hover:text-orange-600"
+                                        onClick={() => setMenuOpen((prev) => !prev)}
+                                    >
+                                        {menuOpen ? 'Hide chats' : 'Show chats'}
+                                    </button>
+                                    <button
+                                        className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 hover:text-orange-600"
+                                        onClick={() => {
+                                            convoEdge.current += 1
+                                            convoId.current = convoEdge.current
+                                            setConvoMsgs(null)
+                                        }}
+                                    >
+                                        New chat
+                                    </button>
+                                </div>
+
+                                <form className="flex gap-2" onSubmit={sendMessage}>
+                                    <input
+                                        type="text"
+                                        value={message}
+                                        onChange={handleChange}
+                                        disabled={submitting}
+                                        className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-0 placeholder:text-slate-400 focus:border-orange-400"
+                                        placeholder="Ask the AI..."
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={submitting || message.trim() === ''}
+                                        className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                    >
+                                        {submitting ? '...' : 'Send'}
+                                    </button>
+                                </form>
+                            </div>
+                        </>
+                    )}
+
+                    {error && (
+                        <div className="border-t border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                            Error: {error.message}
+                        </div>
+                    )}
                 </div>
-                
-                
-                {error && (<div className ="bg-red-600 relative right-1">Error : {error.message}</div>) }
-                </div>
-            }
+            )}
         </div>
     )
 }
