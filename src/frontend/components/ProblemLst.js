@@ -1,4 +1,4 @@
-import React ,{ useEffect, useState, useRef} from 'react'
+import React ,{ useEffect, useState, useRef, useCallback} from 'react'
 
 function ProblemLst(){
     const languageSlugs = 
@@ -81,7 +81,7 @@ function ProblemLst(){
 
     const [filters , setFilters] = useState({difficulties : [], languages : [] , topics : []})
 
-    const handleFetch = async (currentFilters=filters) => {
+    const handleFetch = useCallback(async (currentFilters=filters) => {
         if (inFlight.current || !hasMore){ 
             return // To prevent duplicate calls
         }
@@ -120,15 +120,9 @@ function ProblemLst(){
             inFlight.current = false
         }
 
-    }
+    }, [filters, hasMore]);
 
     
-      
-
-    useEffect(() => {
-        handleFetch(filters);
-    }, []);
-
     // Adding Intersection Observer for lazy loading
     const loaderRef = useRef()
 
@@ -142,15 +136,17 @@ function ProblemLst(){
             },
             {threshold:0.5}
         )
-        if (loaderRef.current){
-            observer.observe(loaderRef.current)
+        const currentLoader = loaderRef.current; // new variable to point to the DOM node, in case react unmounts it.
+
+        if (currentLoader) {
+            observer.observe(currentLoader);
         }
         return () => {
-            if (loaderRef.current){
-                observer.unobserve(loaderRef.current);
+            if (currentLoader) {
+                observer.unobserve(currentLoader)
             }
         }
-    }, [hasMore, handleFetch]);
+    }, [hasMore, handleFetch, filters]);
 
     const handleDifficultyChange =(value) => {
         setFilters(prev=>{
@@ -176,12 +172,6 @@ function ProblemLst(){
         setHasMore(true) 
         handleFetch(filters)
     }
-
-    useEffect(()=> {
-        
-        handleFetch(filters)
-
-    }, [])
 
     const filterBar = () => {
         return (
