@@ -38,7 +38,7 @@ class Conversations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     problem_id = db.Column(db.Integer, db.ForeignKey("problems.id"))
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda:datetime.now(timezone.utc))
     messages = db.relationship("Messages", backref="conversation", lazy=True, cascade="all, delete-orphan")
 
 
@@ -48,7 +48,7 @@ class Messages(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     role = db.Column(db.String, nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda:datetime.now(timezone.utc))
 
 
 def build_prompt(conversation_id, user_id):
