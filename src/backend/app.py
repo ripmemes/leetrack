@@ -6,10 +6,12 @@ from flask_cors import CORS
 from argon2 import PasswordHasher
 from openai import OpenAI
 
-try:
+try: # AI Suggestion, to 
+    from .cache import RedisCache
     from .models import DatabaseModel, db
     from .routes import Routes
 except ImportError:
+    from cache import RedisCache
     from models import DatabaseModel, db
     from routes import Routes
 
@@ -17,10 +19,9 @@ except ImportError:
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="https://api.groq.com/openai/v1")
 
-app = Flask(__name__, template_folder='../frontend')
+app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 CORS(app)
-app.secret_key = "random_placeholder_key"
 ph = PasswordHasher()
 SECRET_KEY = os.getenv("SECRET_AUTHENTIFICATION_KEY")
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -28,7 +29,8 @@ app.config["SECRET_KEY"] = SECRET_KEY
 database = DatabaseModel(app)
 database.create_all(app)
 
-Routes(app, db, ph, client, SECRET_KEY)
+cache = RedisCache(url=os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+Routes(app, db, ph, client, SECRET_KEY, cache)
 
 
 if __name__ == "__main__":
