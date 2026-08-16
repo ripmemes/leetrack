@@ -6,7 +6,7 @@ try:
 except ImportError:  # AI Suggestion to handle the case where redis is not installed
     redis = None
 
-
+# Redis Wrapper class 
 class RedisCache:
     def __init__(self, url=None, client=None, default_ttl=300):
         self.default_ttl = default_ttl
@@ -51,8 +51,8 @@ class RedisCache:
         if not self.enabled or not key:
             return False
         try:
-            self.client.delete(key)
-            return True
+            result = self.client.delete(key)
+            return bool(result)  # Redis returns count, convert to bool
         except Exception:
             self.enabled = False
             return False
