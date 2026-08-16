@@ -232,11 +232,11 @@ class Routes:
             if not conversation:
                 conversation = Conversations(user_id=user_id, problem_id=problem_id)
                 self.db.session.add(conversation)
-                self.db.session.commit()
+                self.db.session.flush() # else conversation.id will be None. and we need to create Message object and in build_prompt
 
             user_msg = Messages(conversation_id=conversation.id, user_id=user_id, role="user", content=message_text)
             self.db.session.add(user_msg)
-            self.db.session.commit()
+    
 
             prompt = build_prompt(conversation.id, user_id)
 
