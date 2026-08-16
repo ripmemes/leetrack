@@ -6,12 +6,10 @@ from flask_cors import CORS
 from argon2 import PasswordHasher
 from openai import OpenAI
 
-try: # AI Suggestion, to 
-    from .cache import RedisCache
+try: 
     from .models import DatabaseModel, db
     from .routes import Routes
 except ImportError:
-    from cache import RedisCache
     from models import DatabaseModel, db
     from routes import Routes
 
@@ -29,8 +27,7 @@ app.config["SECRET_KEY"] = SECRET_KEY
 database = DatabaseModel(app)
 database.create_all(app)
 
-cache = RedisCache(url=os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-Routes(app, db, ph, client, SECRET_KEY, cache)
+Routes(app, db, ph, client, SECRET_KEY)
 
 
 if __name__ == "__main__":
