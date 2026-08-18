@@ -273,7 +273,7 @@ class Routes:
 
             prompt = build_prompt(conversation.id, user_id)
 
-            response = self.client.chat.completions.create(model="llama-3.1-8b-instant",
+            response = self.client.chat.completions.create(model="groq/compound-mini",
                                                           messages=prompt)
 
             reply = response.choices[0].message.content
