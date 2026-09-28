@@ -1,10 +1,14 @@
 import json
 import os
+import logging
 
 try:
     import redis
 except ImportError:  # AI Suggestion to handle the case where redis is not installed
     redis = None
+
+logger = logging.getLogger(__name__)
+
 
 # Redis Wrapper class 
 class RedisCache:
@@ -31,9 +35,13 @@ class RedisCache:
             value = self.client.get(key)
             if value is None:
                 return None
-            return json.loads(value)
-        except Exception:
-            self.enabled = False
+            try:     
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError) as decode_err:
+                logger.error("Corrupted JSON in cache for key '%s': %s", key, decode_err)
+                return None
+        except Exception as e:
+            logger.warning("Redis GET failed for key '%s': %s", key, e)
             return None
 
     def set_json(self, key, value, ttl=None):
@@ -43,8 +51,8 @@ class RedisCache:
             payload = json.dumps(value, default=str)
             self.client.setex(key, ttl or self.default_ttl, payload)
             return True
-        except Exception:
-            self.enabled = False
+        except Exception as e:
+            logger.error("Redis SET failed for key '%s': %s", key, e)
             return False
 
     def delete(self, key):
@@ -53,6 +61,6 @@ class RedisCache:
         try:
             result = self.client.delete(key)
             return bool(result)  # Redis returns count, convert to bool
-        except Exception:
-            self.enabled = False
+        except Exception as e:
+            logger.error("Redis DELETE failed for key '%s': %s", key, e)
             return False
