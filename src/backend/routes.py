@@ -12,12 +12,13 @@ except ImportError:
 
 
 class Routes:
-    def __init__(self, app, db, ph, client, secret_key):
+    def __init__(self, app, db, ph, client, secret_key, cache=None):
         self.app = app
         self.db = db
         self.ph = ph
         self.client = client
         self.secret_key = secret_key
+        self.cache = cache
         self.register_routes()
 
     def token_required(self, f):
@@ -42,6 +43,14 @@ class Routes:
             return f(*args, **kwargs)
 
         return decorated
+
+    def _invalidate_conversation_cache(self, user_id, conversation_id=None):
+        if self.cache is None:
+            return
+        if conversation_id is not None:
+            self.cache.delete(f"conversation:{conversation_id}")
+        self.cache.delete(f"conversations:user:{user_id}")
+        self.cache.delete(f"messages:conversation:{conversation_id}:user:{user_id}")
 
     def register_routes(self):
         @self.app.route("/")
@@ -100,6 +109,11 @@ class Routes:
 
         @self.app.route("/api/daily")
         def daily():
+            cache_key = "leetcode:daily"
+            cached = self.cache.get_json(cache_key) if self.cache is not None else None
+            if cached is not None:
+                return jsonify(cached)
+
             query = """query questionOfToday {
                 activeDailyCodingChallengeQuestion{
                     date
@@ -116,13 +130,21 @@ class Routes:
                                          headers={"Content-Type": "application/json"})
                 if (not response.ok):
                     raise Exception("Network response was not ok")
-                return jsonify(response.json()['data']['activeDailyCodingChallengeQuestion'])
+                payload = response.json()['data']['activeDailyCodingChallengeQuestion']
+                if self.cache is not None:
+                    self.cache.set_json(cache_key, payload, ttl=600)
+                return jsonify(payload)
             except Exception as e:
                 print(f"Request failed : {e}")
                 return jsonify({'error': 'Fetching failed (backend)'}) , 404
 
         @self.app.route("/api/contest")
         def contest():
+            cache_key = "leetcode:contest"
+            cached = self.cache.get_json(cache_key) if self.cache is not None else None
+            if cached is not None:
+                return jsonify(cached)
+
             query = """query upcomingContests {
             upcomingContests {
              title
@@ -139,7 +161,10 @@ class Routes:
                                          headers={"Content-Type": "application/json"})
                 if (not response.ok):
                     raise Exception("Network response was not ok")
-                return jsonify(response.json()['data']['upcomingContests'])
+                payload = response.json()['data']['upcomingContests']
+                if self.cache is not None:
+                    self.cache.set_json(cache_key, payload, ttl=600)
+                return jsonify(payload)
             except Exception as e:
                 print(f"Request failed : {e}")
                 return jsonify({'error': 'Fetching failed (backend)'}) , 404
@@ -203,6 +228,11 @@ class Routes:
                 }
             }
 
+            cache_key = f"leetcode:problems:skip={skip}:limit={limit}:difficulties={','.join(difficulties)}:languages={','.join(languages)}:topics={','.join(topics)}"
+            cached = self.cache.get_json(cache_key) if self.cache is not None else None
+            if cached is not None:
+                return jsonify(cached)
+
             try:
                 response = requests.post("https://leetcode.com/graphql",
                                          json={'query': query, 'variables': variables},
@@ -213,7 +243,10 @@ class Routes:
                 if (not response.ok):
                     raise Exception("Network response was not ok")
 
-                return jsonify(data['data']['problemsetQuestionListV2'])
+                payload = data['data']['problemsetQuestionListV2']
+                if self.cache is not None:
+                    self.cache.set_json(cache_key, payload, ttl=600)
+                return jsonify(payload)
 
             except Exception as e:
                 print(f"Request failed : {e}")
@@ -252,6 +285,11 @@ class Routes:
             self.db.session.add(ai_msg)
             self.db.session.commit()
 
+            if self.cache is not None:
+                self.cache.delete(f"messages:conversation:{conversation.id}:user:{user_id}")
+                self.cache.delete(f"conversation:{conversation.id}")
+                self.cache.delete(f"conversations:user:{user_id}")
+
             return jsonify({"reply": reply}), 200
 
         @self.app.route("/api/conversations")
@@ -267,17 +305,31 @@ class Routes:
             print("/api/conversations : Count of conversations, ", count)
 
             if not id:
+                cache_key = f"conversations:user:{user_id}"
+                cached = self.cache.get_json(cache_key) if self.cache is not None else None
+                if cached is not None:
+                    return jsonify(cached), 200
+
                 response = Conversations.query.filter_by(user_id=user_id)
                 result = []
                 for convo in response:
                     result.append({'id': convo.id, 'created_at': convo.created_at, 'user_id': convo.user_id, 'problem_id': convo.problem_id})
+                if self.cache is not None:
+                    self.cache.set_json(cache_key, result, ttl=600)
                 return jsonify(result), 200
             else:
+                cache_key = f"conversation:{id}"
+                cached = self.cache.get_json(cache_key) if self.cache is not None else None
+                if cached is not None:
+                    return jsonify(cached), 200
+
                 response = Conversations.query.filter_by(id=id).first()
                 if not response:
                     return {'error': 'Conversation not found!'}, 404
-
-                return jsonify([{'id': response.id, 'created_at': response.created_at, 'user_id': response.user_id, 'problem_id': response.problem_id}]), 200
+                payload = [{'id': response.id, 'created_at': response.created_at, 'user_id': response.user_id, 'problem_id': response.problem_id}]
+                if self.cache is not None:
+                    self.cache.set_json(cache_key, payload, ttl=600)
+                return jsonify(payload), 200
 
         @self.app.route("/api/messages")
         def messages():
@@ -288,11 +340,19 @@ class Routes:
             if not user_id:
                 return {"error": "user_id is required"}, 400
 
+            cache_key = f"messages:conversation:{id}:user:{user_id}"
+            cached = self.cache.get_json(cache_key) if self.cache is not None else None
+            if cached is not None:
+                return jsonify(cached), 200
+
             messages_list = build_prompt(id, user_id)
             if not messages_list:
                 return {"error": "Something went wrong while loading the conversation"}, 400
 
-            return jsonify(messages_list[2:]), 200
+            payload = messages_list[2:]
+            if self.cache is not None:
+                self.cache.set_json(cache_key, payload, ttl=600)
+            return jsonify(payload), 200
 
         @self.app.delete("/api/deleteconvo")
         def delconvo():
@@ -311,5 +371,8 @@ class Routes:
 
             self.db.session.delete(convo)
             self.db.session.commit()
+
+            if self.cache is not None:
+                self._invalidate_conversation_cache(user_id, id)
 
             return {'message': 'Conversation deleted successfully'}, 200

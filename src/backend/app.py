@@ -7,9 +7,11 @@ from argon2 import PasswordHasher
 from openai import OpenAI
 
 try: 
+    from .cache import RedisCache
     from .models import DatabaseModel, db
     from .routes import Routes
 except ImportError:
+    from cache import RedisCache
     from models import DatabaseModel, db
     from routes import Routes
 
@@ -27,7 +29,8 @@ app.config["SECRET_KEY"] = SECRET_KEY
 database = DatabaseModel(app)
 database.create_all(app)
 
-Routes(app, db, ph, client, SECRET_KEY)
+cache = RedisCache(url=os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+Routes(app, db, ph, client, SECRET_KEY, cache)
 
 
 if __name__ == "__main__":
