@@ -25,6 +25,8 @@ class Users(db.Model):
     username = db.Column(db.String(200))
     email = db.Column(db.String(100))
     password = db.Column(db.Text, nullable=False)
+    # LeetCode public handle — the only LC datum we persist. No cookies, no tokens.
+    leetcode_handle = db.Column(db.String(200), nullable=True)
     conversations = db.relationship("Conversations", backref="user", lazy=True, cascade="all, delete-orphan")
 
 
