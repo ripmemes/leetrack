@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from './Button';
+// import { Button } from './Button';
 
 function Navbar({logged,setLogged}) {
     const [click, setClick] = useState(false);
-    const [button, setButton] = useState(true);
+    // const [button, setButton] = useState(true);
 
     const handleClick = () => setClick(!click)
     const closeMobileMenu = () => setClick(false)
 
     const showButton = () => {
-        if (window.innerWidth <= 960) {
-            setButton(false);
-        } else {
-            setButton(true);
-        }
+        // if (window.innerWidth <= 960) {
+        //     setButton(false);
+        // } else {
+        //     setButton(true);
+        // }
     };
 
 
@@ -24,7 +24,7 @@ function Navbar({logged,setLogged}) {
         if (token){
             setLogged(true)
         }
-    }, [])
+    }, [setLogged])
 
     useEffect(() => {
         showButton();
@@ -58,6 +58,12 @@ function Navbar({logged,setLogged}) {
                                 Home
                             </Link>
                         </li>
+                        {logged &&
+                        <li>
+                            <Link to='/dashboard' id='nav-dashboard' className='text-white px-4 py-2 block hover:border-b-4 hover:border-white transition duration-200' onClick={closeMobileMenu}>
+                                Dashboard
+                            </Link>
+                        </li>}
                         {!logged && 
                         
                         <><li>
