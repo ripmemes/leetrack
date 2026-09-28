@@ -44,13 +44,14 @@ class Routes:
 
         return decorated
 
-    def _invalidate_conversation_cache(self, user_id, conversation_id=None):
+    def _invalidate_conversation_cache(self, user_id: int | str, conversation_id: int | str | None = None) -> None:
         if self.cache is None:
             return
+        keys = [f"conversations:user:{user_id}"]
         if conversation_id is not None:
-            self.cache.delete(f"conversation:{conversation_id}")
-        self.cache.delete(f"conversations:user:{user_id}")
-        self.cache.delete(f"messages:conversation:{conversation_id}:user:{user_id}")
+            keys.append(f"conversation:{conversation_id}")
+            keys.append(f"messages:conversation:{conversation_id}:user:{user_id}")
+        self.cache.delete(*keys)
 
     def register_routes(self):
         @self.app.route("/")
@@ -70,13 +71,11 @@ class Routes:
                 return {'error': 'Invalid request: must be json file'}, 400
 
             data = request.json
-            print(data)
             username = data.get('username')
             email = data.get('e-mail')
             password = data.get('password')
 
             if not username or not email or not password:
-                print("error here")
                 return {'error': 'All fields are required'}, 400
 
             hashed_pw = self.ph.hash(password)
@@ -127,7 +126,8 @@ class Routes:
             try:
                 response = requests.post("https://leetcode.com/graphql",
                                          json={"query": query},
-                                         headers={"Content-Type": "application/json"})
+                                         headers={"Content-Type": "application/json"},
+                                         timeout=10)
                 if (not response.ok):
                     raise Exception("Network response was not ok")
                 payload = response.json()['data']['activeDailyCodingChallengeQuestion']
@@ -158,7 +158,8 @@ class Routes:
             try:
                 response = requests.post("https://leetcode.com/graphql",
                                          json={"query": query},
-                                         headers={"Content-Type": "application/json"})
+                                         headers={"Content-Type": "application/json"},
+                                         timeout=10)
                 if (not response.ok):
                     raise Exception("Network response was not ok")
                 payload = response.json()['data']['upcomingContests']
@@ -228,7 +229,11 @@ class Routes:
                 }
             }
 
-            cache_key = f"leetcode:problems:skip={skip}:limit={limit}:difficulties={','.join(difficulties)}:languages={','.join(languages)}:topics={','.join(topics)}"
+            sorted_diff = ",".join(sorted(d.upper() for d in difficulties))
+            sorted_lang = ",".join(sorted(l.lower() for l in languages))
+            sorted_topics = ",".join(sorted(t.lower() for t in topics))
+            cache_key = f"leetcode:problems:skip={skip}:limit={limit}:diff={sorted_diff}:lang={sorted_lang}:top={sorted_topics}"
+
             cached = self.cache.get_json(cache_key) if self.cache is not None else None
             if cached is not None:
                 return jsonify(cached)
@@ -236,7 +241,8 @@ class Routes:
             try:
                 response = requests.post("https://leetcode.com/graphql",
                                          json={'query': query, 'variables': variables},
-                                         headers={'Content-Type': 'application/json'})
+                                         headers={'Content-Type': 'application/json'},
+                                         timeout=10)
                 response.raise_for_status()
                 data = response.json()
 
@@ -284,11 +290,8 @@ class Routes:
             ai_msg = Messages(conversation_id=conversation.id, user_id=user_id, role="assistant", content=reply)
             self.db.session.add(ai_msg)
             self.db.session.commit()
-
-            if self.cache is not None:
-                self.cache.delete(f"messages:conversation:{conversation.id}:user:{user_id}")
-                self.cache.delete(f"conversation:{conversation.id}")
-                self.cache.delete(f"conversations:user:{user_id}")
+            
+            self._invalidate_conversation_cache(user_id, conversation.id)
 
             return jsonify({"reply": reply}), 200
 
@@ -323,7 +326,7 @@ class Routes:
                 if cached is not None:
                     return jsonify(cached), 200
 
-                response = Conversations.query.filter_by(id=id).first()
+                response = Conversations.query.filter_by(id=id, user_id=user_id).first()
                 if not response:
                     return {'error': 'Conversation not found!'}, 404
                 payload = [{'id': response.id, 'created_at': response.created_at, 'user_id': response.user_id, 'problem_id': response.problem_id}]
