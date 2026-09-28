@@ -9,16 +9,19 @@ from services.ai_service import AiTutorService
 from services.auth_service import AuthService
 from services.conversation_service import ConversationService
 from services.leetcode_service import LeetCodeService
+from services.dashboard.dashboard_service import DashboardService
 
 
-try: 
+try:
     from .cache import RedisCache
     from .models import DatabaseModel, db
     from .routes import Routes
+    from .dashboard_routes import DashboardRoutes
 except ImportError:
     from cache import RedisCache
     from models import DatabaseModel, db
     from routes import Routes
+    from dashboard_routes import DashboardRoutes
 
 
 load_dotenv()
@@ -42,11 +45,14 @@ ai_service = AiTutorService(client=client, conversation_service=conversation_ser
 CORS(
     app,
     resources={r"/*": {"origins": "*"}},
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-LC-Session"],
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 
 Routes(app, auth_service, leetcode_service, conversation_service, ai_service)
+
+dashboard_service = DashboardService(cache=cache)
+DashboardRoutes(app, auth_service, dashboard_service)
 
 
 if __name__ == "__main__":
