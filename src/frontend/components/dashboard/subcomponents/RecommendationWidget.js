@@ -12,8 +12,9 @@ const DIFF_CLASS = {
  * on_mode_change: callback so DashboardPage can re-fetch recommendations.
  */
 function RecommendationWidget({ recommendations, mode, on_mode_change, loading }) {
+  const rec_count = recommendations ? recommendations.length : 0;
   console.log(`loading value=${loading}`);
-  console.log(`recommendations.length=${recommendations.length}`);
+  console.log(`recommendations.length=${rec_count}`);
   return (
     <div className="dash-card dash-card-wide">
       <div className="flex items-center justify-between mb-3">
@@ -62,7 +63,7 @@ function RecommendationWidget({ recommendations, mode, on_mode_change, loading }
               id={`rec-${rec.title_slug}`}
             >
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-white">{rec.title}</span>
+                <span className="text-sm font-semibold text-gray-800">{rec.title}</span>
                 <span className={DIFF_CLASS[rec.difficulty] || "badge-medium"}>
                   {rec.difficulty}
                 </span>
@@ -80,7 +81,7 @@ function RecommendationWidget({ recommendations, mode, on_mode_change, loading }
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-violet-400 mt-0.5">{rec.rationale}</p>
+              <p className="text-xs text-orange-600 mt-0.5">{rec.rationale}</p>
             </a>
           ))}
         </div>
