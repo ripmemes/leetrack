@@ -41,10 +41,21 @@ _INTERVIEW_PRIORITY: dict[str, int] = {
 }
 
 # Difficulty acceptance-rate bands (approximations for ZPD scoring)
-_DIFFICULTY_BASE_ACCEPTANCE = {
-    "Easy": 0.65,
-    "Medium": 0.45,
-    "Hard": 0.25,
+# _DIFFICULTY_BASE_ACCEPTANCE = {
+#     "Easy": 0.65,
+#     "Medium": 0.45,
+#     "Hard": 0.25,
+# }
+
+_STARTER_SLUGS = {
+    "two-sum",
+    "valid-palindrome",
+    "contains-duplicate",
+    "valid-anagram",
+    "best-time-to-buy-and-sell-stock",
+    "reverse-linked-list",
+    "binary-search",
+    "climbing-stairs",
 }
 
 # ── catalog helpers ───────────────────────────────────────────────────────────
@@ -91,18 +102,18 @@ def _difficulty_fit_score(
 
     Target the difficulty one step above user's comfortable zone.
     """
-    easy_count = solved_stats_dict.get("Easy", 0)
-    med_count = solved_stats_dict.get("Medium", 0)
+    easy_count = solved_stats_dict.get("easy", 0)
+    med_count = solved_stats_dict.get("medium", 0)
 
-    if difficulty == "Easy":
+    if difficulty == "easy":
         # Recommend Easy only to beginners
         return 1.0 if easy_count < 20 else 0.3
-    if difficulty == "Medium":
+    if difficulty == "medium":
         # Sweet spot: user has some Easy but not many Mediums
         if easy_count >= 5:
             return 1.0 if med_count < 80 else 0.6
         return 0.4
-    if difficulty == "Hard":
+    if difficulty == "hard":
         return 1.0 if med_count >= 50 else 0.2
     return 0.5
 
@@ -148,6 +159,33 @@ def recommend(
     Returns:
         Ordered list of Recommendation objects (best first).
     """
+    if profile.is_new_user:
+        starter_candidates = [
+            p for p in catalog
+            if p.get("difficulty") == "Easy" and _acceptance_rate(p) >= 0.50
+        ]
+        starter_candidates.sort(
+            key=lambda p: (
+                1 if p.get("titleSlug") in _STARTER_SLUGS else 0,
+                _acceptance_rate(p),
+            ),
+            reverse=True,
+        )
+        results: list[Recommendation] = []
+        for problem in starter_candidates[:top_n]:
+            topics = [t.get("name", t.get("slug", "")) for t in problem.get("topicTags", [])]
+            results.append(
+                Recommendation(
+                    title=problem.get("title", ""),
+                    title_slug=problem.get("titleSlug", ""),
+                    difficulty=problem.get("difficulty", "Easy"),
+                    topics=topics,
+                    acceptance_rate=round(_acceptance_rate(problem) * 100, 1),
+                    rationale="Great starter problem for beginners.",
+                )
+            )
+        return results
+
     solved_slugs: set[str] = {s.title_slug for s in profile.recent_submissions}
     solved_by_topic: dict[str, int] = {t.slug: t.solved for t in profile.topic_stats}
     solved_stats_dict = dataclasses.asdict(profile.solved_stats)
@@ -199,6 +237,6 @@ def _build_rationale(
         priority = _INTERVIEW_PRIORITY.get(weakest, 0)
         if priority >= 8:
             return f"Core interview topic: {weakest.replace('-', ' ')} ({solved_count} solved)."
-        return f"Strengthens {weakest.replace('-', ' ')} — frequently asked in interviews."
+        return f"Topic: {weakest.replace('-', ' ')}"
     else:
-        return f"Weakest area: {weakest.replace('-', ' ')} — only {solved_count} solved."
+        return f"Weakest area: {weakest.replace('-', ' ')} : {solved_count} solved."
