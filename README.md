@@ -1,95 +1,81 @@
-# Leetrack
+# Leetrack (WIP)
 
-A simple LeetCode progress tracker , **Flask** backend + **React** frontend.  
-Work-in-progress: built to learn full-stack patterns, track practice, and prototype an AI-assisted algorithm tutor.
+A LeetCode progress tracker and AI-assisted tutor built with Flask, React, and Tailwind CSS.
 
 ---
 
-## 🔧 Quick setup
+## Quick Setup
 
-> **Frontend**
+### 1. Backend
 ```bash
-cd frontend
-npm install
-npm start
-# Frontend runs on http://localhost:3000 by default
-```
-
-> **Backend**
-```bash
-# create & activate virtualenv (example for Linux/macOS)
+# Create and activate virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 
-# (Windows - PowerShell)
-# .venv\Scripts\Activate.ps1
-
-# install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# create a .env file in backend (see example below), then start:
+# Start Redis (required for caching)
+docker-compose up -d
+
+# Start backend server (runs on http://localhost:5000)
 python3 src/backend/app.py
-# Backend runs on http://localhost:5000 by default
 ```
 
-**Example `.env`** (place in `backend/` or where `app.py` reads it):
+Create a `.env` file in the root directory:
+```env
+OPENAI_API_KEY=your_groq_or_openai_api_key
+SECRET_AUTHENTIFICATION_KEY=your_jwt_secret
+DATABASE_URL=sqlite:///Users.sqlite3
+REDIS_URL=redis://localhost:6379/0
 ```
-OPENAI_API_KEY=your_openai_or_groq_api_key_here
-SECRET_AUTHENTIFICATION_KEY=your_jwt_secret_here
-DATABASE_URL=sqlite:///leetrack.db
+
+### 2. Frontend
+```bash
+npm install
+npm start  # Runs on http://localhost:3000
 ```
 
 ---
 
-## ✨ Current features (backend & frontend)
+## Key Features
 
-- **Authentication**
-  - Registration & login endpoints using **Argon2** (argon2-cffi) for password hashing.
-  - JWT-based tokens issued on login (stored in localStorage by the frontend for now).
-- **LeetCode integration**
-  - Fetches daily challenge, upcoming contests and problem lists using LeetCode GraphQL.
-- **Problems UI**
-  - Infinite scroll / lazy loading of problems and client-side filters (difficulty / language / topic).
-- **AI tutoring (prototype)**
-  - Conversations are stored per-user; backend forwards conversation history to an LLM (via OpenAI/Groq client) and stores assistant replies.
-  - Notes: assistant replies are post-processed to avoid returning full code blocks, DON'T FORGET to add your openai or groq api key in .env.
-- **Basic React UI**
-  - Pages for home, login, register; components for contests, daily challenge, problem list and AI chat. Tailwind used for styling.
+- **Authentication**: Registration and login endpoints using Argon2 hashing and JWT access tokens.
+- **LeetCode Integration**: Fetches daily challenges, upcoming contests, and problem lists directly via LeetCode GraphQL endpoints.
+- **Analytics Dashboard**: 
+  - Tracks solved problem distribution (Easy, Medium, Hard).
+  - Displays topic proficiency breakdowns and a yearly submission activity heatmap.
+  - Generates personalized problem recommendations tailored for new users, inactive users, and active practice in **Interview** or **Weakness** modes.
+  - Supports optional private mode via Chrome extension session cookie injection.
+- **AI Algorithm Tutor**: Context-aware assistant providing targeted hints and guidance without leaking full code solutions.
+- **Caching**: Multi-level Redis caching for GraphQL query results, user profile data, and conversation history.
 
 ---
 
-## 🧭 API endpoints (summary)
+## API Summary
 
-- `POST /register` — create user (expects JSON: `username`, `e-mail`, `password`)
-- `POST /login` — log in (returns JWT token)
-- `GET /userId` — returns `userId` for the token
-- `GET /api/daily` — LeetCode daily challenge
-- `GET /api/contest` — upcoming LeetCode contests
-- `GET /api/problems` — problem list (supports `skip`, `limit`, `difficulties`, `languages`, `topics`)
-- `POST /api/ai?convoId=<id>` — send user message to the AI assistant (body: `user_id`, `problem_id`, `message`)
-- `GET /api/conversations?user_id=<id>` — list user conversations
-- `GET /api/messages?conversation_id=<id>&user_id=<id>` — retrieve conversation messages
-- `DELETE /api/deleteconvo?conversation_id=<id>&user_id=<id>` — delete a conversation
+### Authentication & Core
+- `POST /register` — Register a new user (`username`, `e-mail`, `password`)
+- `POST /login` — Authenticate and receive a JWT token (`username/e-mail`, `password`)
+- `GET /userId` — Retrieve current user ID *(Requires Bearer token)*
 
-> Some routes require a `Authorization: Bearer <token>` header (see `Home.js` / login flow).
+### LeetCode & Public Data
+- `GET /api/daily` — Fetch LeetCode daily challenge
+- `GET /api/contest` — Fetch upcoming contests
+- `GET /api/problems` — Filterable problem list (`skip`, `limit`, `difficulties`, `languages`, `topics`)
 
----
+### Dashboard
+- `POST /api/dashboard/account/link` — Link LeetCode handle *(Requires Bearer token)*
+- `POST /api/dashboard/account/unlink` — Unlink LeetCode handle *(Requires Bearer token)*
+- `GET /api/dashboard/account/status` — Get handle link status *(Requires Bearer token)*
+- `GET /api/dashboard/public/profile` — Get public stats and activity *(Requires Bearer token)*
+- `GET /api/dashboard/public/recommendations` — Fetch recommendations (`mode=interview|weakness`) *(Requires Bearer token)*
+- `POST /api/dashboard/public/sync` — Refresh profile cache *(Requires Bearer token)*
+- `GET /api/dashboard/private/profile` — Get private profile *(Requires Bearer token & `X-LC-Session` header)*
+- `GET /api/dashboard/private/recommendations` — Fetch private recommendations *(Requires Bearer token & `X-LC-Session` header)*
 
-## 🔐 Current security notes & limitations
-
-- **Passwords** are hashed with Argon2 .  
-- **JWT tokens** are currently stored in the browser's `localStorage` by the frontend — this is easier for development but less secure than HttpOnly cookies (XSS risk). See TODOs for planned improvements.
-- `app.run(debug=True)` and any `db.drop_all()` usage must **never** be used in production — they are useful for local dev only.
-- Make sure to **never** commit your `.env` containing secrets.
-
----
-
-## 🛠️ Roadmap / TODOs
-
-- [ ] **Code Execution Page** — a sandboxed editor where users submit code and see test results (secure runner or third-party service).  
-- [ ] **Move JWTs to HttpOnly cookies** (server-set cookies) for better security and CSRF protection.  
-- [ ] **Per-problem pages** with detailed statements, tags and user progress tracking (solved / attempted / starred).  
-- [ ] **Statistics dashboard** (charts for solved problems by difficulty/topic).  
-- [ ] **Pagination & backend optimizations** (reduce overfetching / improve response times).  
-- [ ] **CI / tests / Dockerization** for reproducible setup and deployment.  
-- [ ] **Improve LLM moderation** and ensure the assistant never returns full working code (only hints/pseudocode).
+### AI Assistant
+- `POST /api/ai?convoId=<id>` — Send message to AI assistant (`user_id`, `problem_id`, `message`)
+- `GET /api/conversations?user_id=<id>` — List active user conversations
+- `GET /api/messages?conversation_id=<id>&user_id=<id>` — Retrieve conversation history
+- `DELETE /api/deleteconvo?conversation_id=<id>&user_id=<id>` — Delete a conversation
