@@ -51,6 +51,18 @@ class PublicProfile:
     contest_info: ContestInfo | None = None
     recent_submissions: list[RecentSubmission] = field(default_factory=list)
     calendar: dict = field(default_factory=dict)  # {dateStr: submissionCount}
+    
+    @property
+    def is_new_user(self) -> bool:
+        return self.solved_stats.total == 0
+
+    @property
+    def has_recent_activity(self) -> bool:
+        return len(self.recent_submissions) > 0
+
+    @property
+    def is_inactive(self) -> bool:
+        return self.solved_stats.total > 0 and len(self.recent_submissions) == 0
 
 
 @dataclass
