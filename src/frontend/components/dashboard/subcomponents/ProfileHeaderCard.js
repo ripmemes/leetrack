@@ -11,7 +11,7 @@ function ProfileHeaderCard({ profile }) {
       <img
         src={avatar_url || `https://ui-avatars.com/api/?name=${handle}&background=6d28d9&color=fff`}
         alt={handle}
-        className="w-14 h-14 rounded-full ring-2 ring-violet-500/40 flex-shrink-0"
+        className="w-14 h-14 rounded-full ring-2 ring-emerald-500 flex-shrink-0"
       />
       <div className="min-w-0">
         <h2 className="text-lg font-bold text-white truncate">{real_name || handle}</h2>
