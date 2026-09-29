@@ -26,19 +26,24 @@ _LC_GRAPHQL = "https://leetcode.com/graphql"
 
 # GraphQL query to load the full catalog (used for recommendations)
 _CATALOG_QUERY = """
-query problemsetQuestionListV2($limit: Int, $skip: Int) {
-  problemsetQuestionListV2(limit: $limit, skip: $skip, sortBy: { sortField: CUSTOM, sortOrder: ASCENDING }) {
-    questions {
-      title
-      titleSlug
-      difficulty
-      acRate
-      topicTags { name slug }
-    }
-    total
-  }
-}
-"""
+        query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String, $searchKeyword: String) {
+          problemsetQuestionListV2(
+            filters: $filters
+            limit: $limit
+            skip: $skip
+            sortBy: $sortBy
+            categorySlug: $categorySlug
+            searchKeyword: $searchKeyword
+          ) {
+            questions {
+              questionFrontendId
+              title
+              difficulty
+            }
+            hasMore
+          }
+        }
+        """
 
 _CATALOG_BATCH = 500
 _CATALOG_TTL = 86_400  # 24 h
@@ -197,7 +202,7 @@ class DashboardService:
                 skip += _CATALOG_BATCH
             except Exception:
                 break  # Return what we have if paginating fails mid-way
-
+        # print("length of catalog: " ,len(all_problems))
         return all_problems
 
     # ── cache helpers ────────────────────────────────────────────────────────
