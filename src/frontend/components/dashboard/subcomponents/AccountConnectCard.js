@@ -55,8 +55,8 @@ function AccountConnectCard({ handle, lc_session, on_handle_change, on_session_c
             type="text"
             value={input_val}
             onChange={(e) => set_input_val(e.target.value)}
-            placeholder="e.g. john_doe"
-            className="w-full bg-gray-50 border-gray-30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+            placeholder="your_leetcode_username"
+            className="w-full bg-gray-50 border-gray-30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:border-amber-500 placeholder:italic placeholder:text-gray-400"
           />
         </div>
 
@@ -92,7 +92,7 @@ function AccountConnectCard({ handle, lc_session, on_handle_change, on_session_c
           )}
         </div>
         <p className="text-xs text-gray-500 mb-2">
-          Install the Leetrack extension to auto-inject your session cookie. Or paste it below manually.
+          (Optional) Paste your LEETCODE_SESSION cookie content below for more features.
         </p>
         <div className="flex gap-2">
           <input
@@ -101,7 +101,7 @@ function AccountConnectCard({ handle, lc_session, on_handle_change, on_session_c
             value={lc_session || ""}
             onChange={(e) => on_session_change(e.target.value || null)}
             placeholder="LEETCODE_SESSION cookie value"
-            className="flex-1 bg-gray-50 border-gray-300 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+            className="flex-1 bg-gray-50 border-gray-300 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-600 focus:outline-none focus:border-amber-500"
           />
           {lc_session && (
             <button
