@@ -83,6 +83,7 @@ function DashboardPage({ logged }) {
         : await get_public_recommendations(rec_mode);
       set_recommendations(data);
     } catch (e) {
+      console.error("Error fetching recommendations:", e);
       set_recommendations(null);
     } finally {
       set_loading_recs(false);
@@ -115,10 +116,10 @@ function DashboardPage({ logged }) {
         {/* header row */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-600">Dashboard</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {is_private ? "🔒 Private mode" : "🌐 Public mode"}
-              {handle && <span className="ml-2 text-violet-400">@{handle}</span>}
+              {handle && <span className="ml-2 text-amber-500">@{handle}</span>}
             </p>
           </div>
           {handle && (
@@ -126,7 +127,7 @@ function DashboardPage({ logged }) {
               id="dashboard-sync-btn"
               onClick={handle_sync}
               disabled={syncing}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-violet-500/50 text-sm text-gray-400 hover:text-violet-300 transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-amber-500/50 text-sm text-gray-400 hover:text-amber-300 transition-colors disabled:opacity-40"
             >
               {syncing ? "Syncing…" : "↻ Sync"}
             </button>
@@ -183,7 +184,7 @@ function DashboardPage({ logged }) {
               <p className="text-3xl mb-3">🔗</p>
               <p className="text-gray-300 font-semibold">Link your LeetCode account above</p>
               <p className="text-sm text-gray-500 mt-1">
-                Enter your public username — no password required.
+                Enter your public username, no password required.
               </p>
             </div>
           )}
